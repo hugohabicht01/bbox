@@ -32,7 +32,7 @@
           />
           <!-- Bounding boxes -->
           <div
-            v-for="box in scaledBoundingBoxes"
+            v-for="box in boundingBoxes"
             :key="box.id"
             class="absolute border-2"
             :style="{
@@ -43,22 +43,60 @@
               borderColor: box.color,
             }"
           >
+            <!-- Box label -->
             <span
               class="absolute -top-6 left-0 px-2 py-1 text-sm text-white rounded"
               :style="{ backgroundColor: box.color }"
             >
               ID: {{ box.id }}
             </span>
+
+            <!-- Resize handles -->
+            <!-- Corners -->
+            <div
+              v-for="handle in ['nw', 'ne', 'se', 'sw'] as ResizeHandle[]"
+              :key="handle"
+              class="absolute w-3 h-3 bg-white border-2 rounded-sm cursor-pointer"
+              :style="{
+                borderColor: box.color,
+                ...getHandlePosition(handle),
+                cursor: getHandleCursor(handle),
+              }"
+              @mousedown="(e) => startResize(e, box.id, handle)"
+            ></div>
+
+            <!-- Edges -->
+            <div
+              v-for="handle in ['n', 's', 'e', 'w'] as ResizeHandle[]"
+              :key="handle"
+              class="absolute bg-white border-2"
+              :style="{
+                borderColor: box.color,
+                ...getEdgePosition(handle),
+                cursor: getHandleCursor(handle),
+              }"
+              @mousedown="(e) => startResize(e, box.id, handle)"
+            ></div>
           </div>
         </div>
       </div>
 
       <!-- Bounding box inputs -->
-      <div v-if="imageUrl" class="space-y-4 text-black">
+      <div v-if="imageUrl" class="space-y-4">
+        <div
+          v-for="(box, index) in boundingBoxes"
+          :key="index"
+          class="flex gap-4 items-center text-black"
+        >
+          <p>
+            [{{ box.x_min }}, {{ box.y_min }}, {{ box.x_max }}, {{ box.y_max }}]
+            <span :style="{ color: box.color }">ID: {{ box.id }}</span>
+          </p>
+        </div>
         <div
           v-for="(box, index) in boundingBoxInputs"
           :key="index"
-          class="flex gap-4 items-center"
+          class="flex gap-4 items-center text-black"
         >
           <input
             type="text"
@@ -89,7 +127,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted } from "vue";
+import { ref, reactive, onMounted, onUnmounted } from "vue";
 
 // Types and interfaces
 interface BoundingBox {
@@ -110,6 +148,17 @@ interface ExportData {
   coordinates: [number, number, number, number];
 }
 
+type ResizeHandle = "n" | "s" | "e" | "w" | "nw" | "ne" | "se" | "sw";
+
+interface ResizeState {
+  active: boolean;
+  boxId: number | null;
+  handle: ResizeHandle | null;
+  startX: number;
+  startY: number;
+  originalBox: BoundingBox | null;
+}
+
 // Refs and reactive state
 const imageUrl = ref<string | null>(null);
 const imageRef = ref<HTMLImageElement | null>(null);
@@ -119,38 +168,141 @@ const boundingBoxInputs = reactive<BoundingBoxInput[]>([{ value: "" }]);
 const naturalWidth = ref<number>(0);
 const naturalHeight = ref<number>(0);
 
-// Computed scaled bounding boxes based on image display size
-const scaledBoundingBoxes = computed(() => {
-  if (!imageRef.value) return boundingBoxes;
+const displayWidth = ref<number>(0);
 
-  const scale = imageRef.value.width / naturalWidth.value;
-
-  return boundingBoxes.map((box) => ({
-    ...box,
-    x_min: box.x_min * scale,
-    y_min: box.y_min * scale,
-    x_max: box.x_max * scale,
-    y_max: box.y_max * scale,
-  }));
+// Resize state
+const resizeState = reactive<ResizeState>({
+  active: false,
+  boxId: null,
+  handle: null,
+  startX: 0,
+  startY: 0,
+  originalBox: null,
 });
 
-// Handle window resize
-const handleResize = () => {
-  // Force recomputation of scaled boxes
-  if (imageRef.value) {
-    naturalWidth.value = imageRef.value.naturalWidth;
-    naturalHeight.value = imageRef.value.naturalHeight;
-  }
+// Handle positions and styles
+const getHandlePosition = (handle: ResizeHandle) => {
+  const positions = {
+    nw: { top: "-5px", left: "-5px" },
+    ne: { top: "-5px", right: "-5px" },
+    se: { bottom: "-5px", right: "-5px" },
+    sw: { bottom: "-5px", left: "-5px" },
+  };
+  return positions[handle as keyof typeof positions] || {};
 };
 
-// Setup resize observer
-onMounted(() => {
-  window.addEventListener("resize", handleResize);
-});
+const getEdgePosition = (handle: ResizeHandle) => {
+  const positions = {
+    n: {
+      top: "-5px",
+      left: "50%",
+      transform: "translateX(-50%)",
+      width: "20px",
+      height: "10px",
+    },
+    s: {
+      bottom: "-5px",
+      left: "50%",
+      transform: "translateX(-50%)",
+      width: "20px",
+      height: "10px",
+    },
+    e: {
+      right: "-5px",
+      top: "50%",
+      transform: "translateY(-50%)",
+      width: "10px",
+      height: "20px",
+    },
+    w: {
+      left: "-5px",
+      top: "50%",
+      transform: "translateY(-50%)",
+      width: "10px",
+      height: "20px",
+    },
+  };
+  return positions[handle as keyof typeof positions] || {};
+};
 
-onUnmounted(() => {
-  window.removeEventListener("resize", handleResize);
-});
+const getHandleCursor = (handle: ResizeHandle): string => {
+  const cursors: Record<ResizeHandle, string> = {
+    n: "ns-resize",
+    s: "ns-resize",
+    e: "ew-resize",
+    w: "ew-resize",
+    nw: "nw-resize",
+    ne: "ne-resize",
+    se: "se-resize",
+    sw: "sw-resize",
+  };
+  return cursors[handle];
+};
+
+// Resize handlers
+const startResize = (e: MouseEvent, boxId: number, handle: ResizeHandle) => {
+  e.preventDefault();
+  const box = boundingBoxes.find((b) => b.id === boxId);
+  if (!box) return;
+
+  resizeState.active = true;
+  resizeState.boxId = boxId;
+  resizeState.handle = handle;
+  resizeState.startX = e.clientX;
+  resizeState.startY = e.clientY;
+  resizeState.originalBox = { ...box };
+
+  window.addEventListener("mousemove", handleResize);
+  window.addEventListener("mouseup", stopResize);
+};
+
+const handleResize = (e: MouseEvent) => {
+  if (!resizeState.active || !resizeState.originalBox || !imageRef.value)
+    return;
+
+  const deltaX = e.clientX - resizeState.startX;
+  const deltaY = e.clientY - resizeState.startY;
+
+  const box = boundingBoxes.find((b) => b.id === resizeState.boxId);
+  if (!box) return;
+
+  const handle = resizeState.handle;
+  const original = resizeState.originalBox;
+
+  // Update coordinates based on handle being dragged
+  if (handle?.includes("w")) box.x_min = original.x_min + deltaX;
+  if (handle?.includes("e")) box.x_max = original.x_max + deltaX;
+  if (handle?.includes("n")) box.y_min = original.y_min + deltaY;
+  if (handle?.includes("s")) box.y_max = original.y_max + deltaY;
+
+  // Ensure min values don't exceed max values
+  if (box.x_min > box.x_max) {
+    const temp = box.x_min;
+    box.x_min = box.x_max;
+    box.x_max = temp;
+  }
+  if (box.y_min > box.y_max) {
+    const temp = box.y_min;
+    box.y_min = box.y_max;
+    box.y_max = temp;
+  }
+
+  // round all coordinates
+  box.x_min = Math.round(box.x_min);
+  box.x_max = Math.round(box.x_max);
+  box.y_min = Math.round(box.y_min);
+  box.y_max = Math.round(box.y_max);
+};
+
+const stopResize = () => {
+  resizeState.active = false;
+  resizeState.boxId = null;
+  resizeState.handle = null;
+  resizeState.originalBox = null;
+
+  window.removeEventListener("mousemove", handleResize);
+  window.removeEventListener("mouseup", stopResize);
+};
 
 // Generate random color
 const getRandomColor = (): string => {
@@ -200,9 +352,9 @@ const handleImageLoad = (): void => {
   if (imageRef.value) {
     naturalWidth.value = imageRef.value.naturalWidth;
     naturalHeight.value = imageRef.value.naturalHeight;
+    displayWidth.value = imageRef.value.clientWidth;
   }
 };
-
 // Parse bounding box input
 const parseBoundingBox = (
   input: string,
@@ -249,6 +401,21 @@ const handleBoundingBoxInput = (index: number): void => {
     alert("Invalid format. Please use [x_min, y_min, x_max, y_max]");
   }
 };
+
+const handleWindowResize = () => {
+  if (imageRef.value) {
+    displayWidth.value = imageRef.value.clientWidth;
+  }
+};
+
+// Setup resize observer
+onMounted(() => {
+  window.addEventListener("resize", handleWindowResize);
+});
+
+onUnmounted(() => {
+  window.removeEventListener("resize", handleWindowResize);
+});
 
 // Export bounding boxes
 const exportBoundingBoxes = (): void => {
