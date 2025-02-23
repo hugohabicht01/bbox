@@ -118,7 +118,7 @@ const updateStructured = (structured: FindingList, newBoxes: BboxType[]) => {
 
 function customFindingsStringify(findings: FindingList): string {
   return JSON.stringify(findings, null, 4).replace(
-    /"bounding_box": \[([^\]]+)\]/gs,
+    /"bounding_box": \[\s*([^\]]+?)\s*\]/gs,
     (match, arrayContent) => {
       return `"bounding_box": [${arrayContent.replace(/,\s*/g, ", ")}]`;
     },

@@ -67,7 +67,6 @@
         <ul>
           <li v-for="bbox in extractedBoxes" :key="bbox[0]">{{ bbox }}</li>
         </ul>
-        <button @click="addTenToFirst" btn>Add Ten</button>
       </div>
 
       <!-- Export button -->
@@ -111,17 +110,6 @@ const boundingBoxInputs = reactive<BoundingBoxInput[]>([{ value: "" }]);
 
 const extractedBoxes = ref<BboxType[]>([]);
 
-const addTenToFirst = () => {
-  if (extractedBoxes.value[0]) {
-    extractedBoxes.value[0] = [
-      extractedBoxes.value[0][0] + 10,
-      extractedBoxes.value[0][1] + 10,
-      extractedBoxes.value[0][2] + 10,
-      extractedBoxes.value[0][3] + 10,
-    ];
-  }
-};
-
 const newBoxText = ref("");
 
 const handleFileSelect = (event: Event): void => {
@@ -146,9 +134,9 @@ const loadImage = (file: File): void => {
     if (typeof result === "string") {
       imageUrl.value = result;
       // Reset bounding boxes and inputs
-      boundingBoxes.value.splice(0);
-      boundingBoxInputs.splice(0);
-      boundingBoxInputs.push({ value: "" });
+      // boundingBoxes.value.splice(0);
+      // boundingBoxInputs.splice(0);
+      // boundingBoxInputs.push({ value: "" });
     }
   };
   reader.readAsDataURL(file);
