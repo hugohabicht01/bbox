@@ -32,12 +32,16 @@
       <div v-if="imageUrl" class="space-y-4">
         <div
           v-for="(box, index) in boundingBoxes"
-          :key="index"
+          :key="box.id"
           class="flex gap-4 items-center text-black"
         >
           <p>
             [{{ box.x_min }}, {{ box.y_min }}, {{ box.x_max }}, {{ box.y_max }}]
             <span :style="{ color: box.color }">ID: {{ box.id }}</span>
+            <span class="text-red cursor-pointer" @click="deleteBox(index)"
+              >&nbsp;
+              <div class="i-carbon-trash-can inline-block vertical-sub"></div
+            ></span>
           </p>
         </div>
         <div class="flex gap-4 items-center text-black">
@@ -46,10 +50,10 @@
             v-model="newBoxText"
             placeholder="[x_min, y_min, x_max, y_max]"
             class="flex-1 px-4 py-2 border rounded"
-            @keyup.enter="addNewBox(newBoxText)"
+            @keyup.enter="addNewBox"
           />
           <button
-            @click="addNewBox(newBoxText)"
+            @click="addNewBox"
             class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
           >
             Add Box
@@ -93,7 +97,7 @@ interface ExportData {
 }
 
 const imageUrl = ref<string | null>(null);
-const boundingBoxes = reactive<BoundingBox[]>([]);
+const boundingBoxes = ref<BoundingBox[]>([]);
 const boundingBoxInputs = reactive<BoundingBoxInput[]>([{ value: "" }]);
 
 const newBoxText = ref("");
@@ -120,7 +124,7 @@ const loadImage = (file: File): void => {
     if (typeof result === "string") {
       imageUrl.value = result;
       // Reset bounding boxes and inputs
-      boundingBoxes.splice(0);
+      boundingBoxes.value.splice(0);
       boundingBoxInputs.splice(0);
       boundingBoxInputs.push({ value: "" });
     }
@@ -161,8 +165,8 @@ const addNewBox = () => {
   }
 
   const [x_min, y_min, x_max, y_max] = coords;
-  boundingBoxes.push({
-    id: boundingBoxes.length,
+  boundingBoxes.value.push({
+    id: boundingBoxes.value.length,
     x_min,
     y_min,
     x_max,
@@ -170,6 +174,10 @@ const addNewBox = () => {
     color: getRandomColor(),
   });
   newBoxText.value = "";
+};
+
+const deleteBox = (index: number) => {
+  boundingBoxes.value.splice(index, 1);
 };
 
 const getRandomColor = (): string => {
@@ -182,7 +190,7 @@ const getRandomColor = (): string => {
 };
 
 const exportBoundingBoxes = (): void => {
-  const exportData: ExportData[] = boundingBoxes.map(
+  const exportData: ExportData[] = boundingBoxes.value.map(
     ({ id, x_min, y_min, x_max, y_max }) => ({
       id,
       coordinates: [x_min, y_min, x_max, y_max],

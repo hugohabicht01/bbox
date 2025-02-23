@@ -1,10 +1,15 @@
 <template>
   <div v-if="imageUrl" class="mb-6">
-    <div class="relative inline-block" ref="containerRef">
+    <!-- Attach mousedown on the container -->
+    <div
+      class="relative inline-block"
+      ref="containerRef"
+      @mousedown="startDrawing"
+    >
       <img :src="imageUrl" ref="imageRef" class="max-w-full h-auto" />
       <!-- Render each bounding box -->
       <div
-        v-for="box in localBoxes"
+        v-for="box in boxes"
         :key="box.id"
         class="absolute border-2"
         :style="{
@@ -13,6 +18,8 @@
           width: `${box.x_max - box.x_min}px`,
           height: `${box.y_max - box.y_min}px`,
           borderColor: box.color,
+          // Optionally show a dashed border if the box is being drawn
+          borderStyle: box.id === drawingBoxId ? 'dashed' : 'solid',
         }"
       >
         <!-- Box label -->
@@ -27,13 +34,13 @@
         <div
           v-for="handle in ['nw', 'ne', 'se', 'sw'] as ResizeHandle[]"
           :key="handle"
-          class="absolute w-3 h-3 bg-white border-2 rounded-sm cursor-pointer"
+          class="absolute w-3 h-3 bg-white border-2 rounded-sm"
           :style="{
             borderColor: box.color,
             ...getHandlePosition(handle),
             cursor: getHandleCursor(handle),
           }"
-          @mousedown="(e) => startResize(e, box.id, handle)"
+          @mousedown.stop="(e) => startResize(e, box.id, handle)"
         ></div>
 
         <!-- Resize handles (edges) -->
@@ -46,7 +53,7 @@
             ...getEdgePosition(handle),
             cursor: getHandleCursor(handle),
           }"
-          @mousedown="(e) => startResize(e, box.id, handle)"
+          @mousedown.stop="(e) => startResize(e, box.id, handle)"
         ></div>
       </div>
     </div>
@@ -54,7 +61,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, watch, PropType } from "vue";
+import { ref, reactive, PropType } from "vue";
 
 interface BoundingBox {
   id: number;
@@ -86,31 +93,15 @@ const props = defineProps({
 });
 const emit = defineEmits(["update:boundingBoxes"]);
 
-// Create a local copy for two‑way editing
-const localBoxes = ref<BoundingBox[]>([...props.boundingBoxes]);
-
-// Sync parent -> local
-watch(
-  () => props.boundingBoxes,
-  (newVal) => {
-    localBoxes.value = [...newVal];
-  },
-  { deep: true },
-);
-
-// Sync local -> parent (using deep watch)
-watch(
-  localBoxes,
-  (newVal) => {
-    emit("update:boundingBoxes", newVal);
-  },
-  { deep: true },
-);
+const boxes = computed<BoundingBox[]>({
+  get: () => props.boundingBoxes,
+  set: (newBoxes) => emit("update:boundingBoxes", newBoxes),
+});
 
 const imageRef = ref<HTMLImageElement | null>(null);
 const containerRef = ref<HTMLDivElement | null>(null);
 
-// Resize state
+// --- RESIZE LOGIC (for existing boxes) ---
 const resizeState = reactive<ResizeState>({
   active: false,
   boxId: null,
@@ -179,7 +170,7 @@ const getHandleCursor = (handle: ResizeHandle): string => {
 
 const startResize = (e: MouseEvent, boxId: number, handle: ResizeHandle) => {
   e.preventDefault();
-  const box = localBoxes.value.find((b) => b.id === boxId);
+  const box = boxes.value.find((b) => b.id === boxId);
   if (!box) return;
 
   resizeState.active = true;
@@ -200,7 +191,7 @@ const handleResize = (e: MouseEvent) => {
   const deltaX = e.clientX - resizeState.startX;
   const deltaY = e.clientY - resizeState.startY;
 
-  const box = localBoxes.value.find((b) => b.id === resizeState.boxId);
+  const box = boxes.value.find((b) => b.id === resizeState.boxId);
   if (!box) return;
 
   const handle = resizeState.handle;
@@ -223,7 +214,7 @@ const handleResize = (e: MouseEvent) => {
     box.y_max = temp;
   }
 
-  // Round all coordinates
+  // Round coordinates
   box.x_min = Math.round(box.x_min);
   box.x_max = Math.round(box.x_max);
   box.y_min = Math.round(box.y_min);
@@ -238,5 +229,83 @@ const stopResize = () => {
 
   window.removeEventListener("mousemove", handleResize);
   window.removeEventListener("mouseup", stopResize);
+};
+
+// --- DRAWING NEW BOXES ---
+// When the user clicks on the image (but not on an existing box), we start drawing a new box.
+const isDrawing = ref(false);
+const drawStartX = ref(0);
+const drawStartY = ref(0);
+// To easily style the box being drawn, store its id
+const drawingBoxId = ref<number | null>(null);
+
+const getRandomColor = (): string => {
+  const letters = "0123456789ABCDEF";
+  let color = "#";
+  for (let i = 0; i < 6; i++) {
+    color += letters[Math.floor(Math.random() * 16)];
+  }
+  return color;
+};
+
+const startDrawing = (e: MouseEvent) => {
+  // Only start drawing if the target is the image
+  if (e.target !== imageRef.value) return;
+  // Prevent conflict with other mouse events
+  e.preventDefault();
+  isDrawing.value = true;
+
+  // Get the container's position to compute coordinates relative to it
+  const rect = containerRef.value?.getBoundingClientRect();
+  const startX = e.clientX - (rect?.left ?? 0);
+  const startY = e.clientY - (rect?.top ?? 0);
+  drawStartX.value = startX;
+  drawStartY.value = startY;
+
+  // Create a new bounding box with initial values
+  const newId =
+    boxes.value.length > 0 ? Math.max(...boxes.value.map((b) => b.id)) + 1 : 0;
+  const newBox: BoundingBox = {
+    id: newId,
+    x_min: startX,
+    y_min: startY,
+    x_max: startX,
+    y_max: startY,
+    color: getRandomColor(),
+  };
+
+  // Remember the new box's id so we can style it differently if desired
+  drawingBoxId.value = newId;
+  boxes.value.push(newBox);
+
+  window.addEventListener("mousemove", handleDrawing);
+  window.addEventListener("mouseup", stopDrawing);
+};
+
+const handleDrawing = (e: MouseEvent) => {
+  if (!isDrawing.value) return;
+  if (!containerRef.value) return;
+  // Get current mouse position relative to the container
+  const rect = containerRef.value.getBoundingClientRect();
+  const currentX = e.clientX - rect.left;
+  const currentY = e.clientY - rect.top;
+
+  // Find the box we're drawing (it was just added)
+  const box = boxes.value.find((b) => b.id === drawingBoxId.value);
+  if (!box) return;
+
+  // Compute the coordinates so that the user can drag in any direction
+  box.x_min = Math.round(Math.min(drawStartX.value, currentX));
+  box.x_max = Math.round(Math.max(drawStartX.value, currentX));
+  box.y_min = Math.round(Math.min(drawStartY.value, currentY));
+  box.y_max = Math.round(Math.max(drawStartY.value, currentY));
+};
+
+const stopDrawing = () => {
+  if (!isDrawing.value) return;
+  isDrawing.value = false;
+  drawingBoxId.value = null;
+  window.removeEventListener("mousemove", handleDrawing);
+  window.removeEventListener("mouseup", stopDrawing);
 };
 </script>
