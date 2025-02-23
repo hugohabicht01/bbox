@@ -10,9 +10,9 @@ import {
   BboxType,
   getSection,
   bboxEquals,
-  FindingList,
-  safeParseJSON,
+  Finding,
   findingList,
+  safeParseJSON,
 } from "~/utils";
 
 // Define props with withDefaults for TypeScript support
@@ -45,7 +45,7 @@ const getStructured = (text: string) => {
   return res.data;
 };
 
-const updateStructured = (structured: FindingList, newBoxes: BboxType[]) => {
+const updateStructured = (structured: Finding[], newBoxes: BboxType[]) => {
   /*
     several cases:
     1. amount of boxes unchanged, just some dimensions changed, so we can go by index
@@ -116,7 +116,7 @@ const updateStructured = (structured: FindingList, newBoxes: BboxType[]) => {
   }
 };
 
-function customFindingsStringify(findings: FindingList): string {
+function customFindingsStringify(findings: Finding[]): string {
   return JSON.stringify(findings, null, 4).replace(
     /"bounding_box": \[\s*([^\]]+?)\s*\]/gs,
     (match, arrayContent) => {

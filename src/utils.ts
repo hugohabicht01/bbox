@@ -21,7 +21,6 @@ export const findingSchema = z.object({
 export const findingList = z.array(findingSchema);
 
 export type Finding = z.infer<typeof findingSchema>;
-export type FindingList = z.infer<typeof findingList>;
 
 export const getSection = (text: string, sectionMarker: string) => {
   const sectionStartMarker = `<${sectionMarker}>`;
