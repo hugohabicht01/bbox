@@ -44,45 +44,15 @@
             ></span>
           </p>
         </div>
-        <div class="flex gap-4 items-center text-black">
-          <input
-            type="text"
-            v-model="newBoxText"
-            placeholder="[x_min, y_min, x_max, y_max]"
-            class="flex-1 px-4 py-2 border rounded"
-            @keyup.enter="addNewBox"
-          />
-          <button
-            @click="addNewBox"
-            class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-          >
-            Add Box
-          </button>
-        </div>
       </div>
 
       <TextInput v-model:bounding-boxes="extractedBoxes" />
-      <div class="p-4">
-        <h3>boxes:</h3>
-        <ul>
-          <li v-for="bbox in extractedBoxes" :key="bbox[0]">{{ bbox }}</li>
-        </ul>
-      </div>
-
-      <!-- Export button -->
-      <button
-        v-if="boundingBoxes.length > 0"
-        @click="exportBoundingBoxes"
-        class="mt-6 px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
-      >
-        Export Bounding Boxes
-      </button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from "vue";
+import { ref } from "vue";
 import ImageCanvas from "~/components/ImageCanvas.vue";
 import { bboxSchema, BboxType } from "~/utils";
 
@@ -95,22 +65,10 @@ interface BoundingBox {
   color: string;
 }
 
-interface BoundingBoxInput {
-  value: string;
-}
-
-interface ExportData {
-  id: number;
-  coordinates: [number, number, number, number];
-}
-
 const imageUrl = ref<string | null>(null);
 const boundingBoxes = ref<BoundingBox[]>([]);
-const boundingBoxInputs = reactive<BoundingBoxInput[]>([{ value: "" }]);
 
 const extractedBoxes = ref<BboxType[]>([]);
-
-const newBoxText = ref("");
 
 const handleFileSelect = (event: Event): void => {
   const target = event.target as HTMLInputElement;
@@ -157,25 +115,6 @@ const parseBoundingBox = (
   }
 };
 
-const addNewBox = () => {
-  const coords = parseBoundingBox(newBoxText.value);
-  if (typeof coords === "string") {
-    alert(coords);
-    return;
-  }
-
-  const [x_min, y_min, x_max, y_max] = coords;
-  boundingBoxes.value.push({
-    id: boundingBoxes.value.length,
-    x_min,
-    y_min,
-    x_max,
-    y_max,
-    color: getRandomColor(),
-  });
-  newBoxText.value = "";
-};
-
 const deleteBox = (index: number) => {
   boundingBoxes.value.splice(index, 1);
 };
@@ -187,23 +126,5 @@ const getRandomColor = (): string => {
     color += letters[Math.floor(Math.random() * 16)];
   }
   return color;
-};
-
-const exportBoundingBoxes = (): void => {
-  const exportData: ExportData[] = boundingBoxes.value.map(
-    ({ id, x_min, y_min, x_max, y_max }) => ({
-      id,
-      coordinates: [x_min, y_min, x_max, y_max],
-    }),
-  );
-
-  const dataStr: string = JSON.stringify(exportData, null, 2);
-  const dataUri: string =
-    "data:application/json;charset=utf-8," + encodeURIComponent(dataStr);
-
-  const linkElement: HTMLAnchorElement = document.createElement("a");
-  linkElement.setAttribute("href", dataUri);
-  linkElement.setAttribute("download", "bounding_boxes.json");
-  linkElement.click();
 };
 </script>
