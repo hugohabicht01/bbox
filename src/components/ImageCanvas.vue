@@ -21,6 +21,8 @@
           // Optionally show a dashed border if the box is being drawn
           borderStyle: box.id === drawingBoxId ? 'dashed' : 'solid',
         }"
+        @mouseenter="setHoveredBox(box.id)"
+        @mouseleave="clearHoveredBox"
       >
         <!-- Box label -->
         <span
@@ -61,7 +63,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, PropType } from "vue";
+import { ref, reactive, computed, onMounted, onUnmounted, PropType } from "vue";
 
 interface BoundingBox {
   id: number;
@@ -232,11 +234,9 @@ const stopResize = () => {
 };
 
 // --- DRAWING NEW BOXES ---
-// When the user clicks on the image (but not on an existing box), we start drawing a new box.
 const isDrawing = ref(false);
 const drawStartX = ref(0);
 const drawStartY = ref(0);
-// To easily style the box being drawn, store its id
 const drawingBoxId = ref<number | null>(null);
 
 const getRandomColor = (): string => {
@@ -251,18 +251,15 @@ const getRandomColor = (): string => {
 const startDrawing = (e: MouseEvent) => {
   // Only start drawing if the target is the image
   if (e.target !== imageRef.value) return;
-  // Prevent conflict with other mouse events
   e.preventDefault();
   isDrawing.value = true;
 
-  // Get the container's position to compute coordinates relative to it
   const rect = containerRef.value?.getBoundingClientRect();
   const startX = e.clientX - (rect?.left ?? 0);
   const startY = e.clientY - (rect?.top ?? 0);
   drawStartX.value = startX;
   drawStartY.value = startY;
 
-  // Create a new bounding box with initial values
   const newId =
     boxes.value.length > 0 ? Math.max(...boxes.value.map((b) => b.id)) + 1 : 0;
   const newBox: BoundingBox = {
@@ -274,7 +271,6 @@ const startDrawing = (e: MouseEvent) => {
     color: getRandomColor(),
   };
 
-  // Remember the new box's id so we can style it differently if desired
   drawingBoxId.value = newId;
   boxes.value.push(newBox);
 
@@ -285,16 +281,13 @@ const startDrawing = (e: MouseEvent) => {
 const handleDrawing = (e: MouseEvent) => {
   if (!isDrawing.value) return;
   if (!containerRef.value) return;
-  // Get current mouse position relative to the container
   const rect = containerRef.value.getBoundingClientRect();
   const currentX = e.clientX - rect.left;
   const currentY = e.clientY - rect.top;
 
-  // Find the box we're drawing (it was just added)
   const box = boxes.value.find((b) => b.id === drawingBoxId.value);
   if (!box) return;
 
-  // Compute the coordinates so that the user can drag in any direction
   box.x_min = Math.round(Math.min(drawStartX.value, currentX));
   box.x_max = Math.round(Math.max(drawStartX.value, currentX));
   box.y_min = Math.round(Math.min(drawStartY.value, currentY));
@@ -308,4 +301,30 @@ const stopDrawing = () => {
   window.removeEventListener("mousemove", handleDrawing);
   window.removeEventListener("mouseup", stopDrawing);
 };
+
+// --- DELETION LOGIC ---
+// Track which box is currently hovered.
+const hoveredBoxId = ref<number | null>(null);
+const setHoveredBox = (id: number) => {
+  hoveredBoxId.value = id;
+};
+const clearHoveredBox = () => {
+  hoveredBoxId.value = null;
+};
+
+// Listen for keydown events (specifically Backspace) to delete the hovered box.
+const handleKeydown = (e: KeyboardEvent) => {
+  if (e.key === "Backspace" && hoveredBoxId.value !== null) {
+    e.preventDefault();
+    boxes.value = boxes.value.filter((b) => b.id !== hoveredBoxId.value);
+    hoveredBoxId.value = null;
+  }
+};
+
+onMounted(() => {
+  window.addEventListener("keydown", handleKeydown);
+});
+onUnmounted(() => {
+  window.removeEventListener("keydown", handleKeydown);
+});
 </script>
