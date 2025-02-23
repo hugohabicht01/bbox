@@ -1,6 +1,6 @@
 <!-- App.vue -->
 <template>
-  <div class="min-h-screen bg-gray-100 p-8">
+  <div class="min-h-screen bg-gray-100 p-8 text-black">
     <div class="max-w-4xl mx-auto bg-white rounded-lg shadow-lg p-6">
       <h1 class="text-3xl font-bold mb-6 text-gray-800">
         Image Annotation Tool
@@ -61,6 +61,15 @@
         </div>
       </div>
 
+      <TextInput v-model:bounding-boxes="extractedBoxes" />
+      <div class="p-4">
+        <h3>boxes:</h3>
+        <ul>
+          <li v-for="bbox in extractedBoxes" :key="bbox[0]">{{ bbox }}</li>
+        </ul>
+        <button @click="addTenToFirst" btn>Add Ten</button>
+      </div>
+
       <!-- Export button -->
       <button
         v-if="boundingBoxes.length > 0"
@@ -75,8 +84,8 @@
 
 <script setup lang="ts">
 import { ref, reactive } from "vue";
-import { z } from "zod";
 import ImageCanvas from "~/components/ImageCanvas.vue";
+import { bboxSchema, BboxType } from "~/utils";
 
 interface BoundingBox {
   id: number;
@@ -99,6 +108,19 @@ interface ExportData {
 const imageUrl = ref<string | null>(null);
 const boundingBoxes = ref<BoundingBox[]>([]);
 const boundingBoxInputs = reactive<BoundingBoxInput[]>([{ value: "" }]);
+
+const extractedBoxes = ref<BboxType[]>([]);
+
+const addTenToFirst = () => {
+  if (extractedBoxes.value[0]) {
+    extractedBoxes.value[0] = [
+      extractedBoxes.value[0][0] + 10,
+      extractedBoxes.value[0][1] + 10,
+      extractedBoxes.value[0][2] + 10,
+      extractedBoxes.value[0][3] + 10,
+    ];
+  }
+};
 
 const newBoxText = ref("");
 
@@ -135,19 +157,9 @@ const loadImage = (file: File): void => {
 const parseBoundingBox = (
   input: string,
 ): [number, number, number, number] | string => {
-  const boxSchema = z
-    .tuple([z.number(), z.number(), z.number(), z.number()])
-    .refine((coords) => coords.every((n) => n >= 0), {
-      message: "All coordinates must be non-negative",
-    })
-    .refine((coords) => coords[0] < coords[2] && coords[1] < coords[3], {
-      message:
-        "x_min must be less than x_max and y_min must be less than y_max",
-    });
-
   try {
     const coords = JSON.parse(input.replace(/\s/g, ""));
-    const res = boxSchema.safeParse(coords);
+    const res = bboxSchema.safeParse(coords);
     if (res.success) {
       return res.data;
     }
