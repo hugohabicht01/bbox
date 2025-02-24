@@ -1,6 +1,6 @@
 <!-- App.vue -->
 <template>
-  <div class="min-h-screen bg-gray-100 p-8 text-black">
+  <div class="min-h-screen text-black pt-8">
     <div class="max-w-4xl mx-auto bg-white rounded-lg shadow-lg p-6">
       <h1 class="text-3xl font-bold mb-6 text-gray-800">
         Image Annotation Tool

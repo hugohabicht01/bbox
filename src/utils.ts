@@ -56,7 +56,7 @@ export const getSection = (text: string, sectionMarker: string) => {
 };
 
 export const safeParseJSON = (jsonString: string): any => {
-  if (jsonString === "") return "";
+  if (jsonString.trim() === "") return "";
   try {
     return JSON.parse(jsonString);
   } catch (error) {

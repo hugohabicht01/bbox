@@ -9,6 +9,7 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     BoxList: typeof import('./src/components/BoxList.vue')['default']
+    Footer: typeof import('./src/components/Footer.vue')['default']
     ImageCanvas: typeof import('./src/components/ImageCanvas.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
@@ -16,5 +17,7 @@ declare module 'vue' {
     TheCounter: typeof import('./src/components/TheCounter.vue')['default']
     TheFooter: typeof import('./src/components/TheFooter.vue')['default']
     TheInput: typeof import('./src/components/TheInput.vue')['default']
+    Toast: typeof import('./src/components/Toast.vue')['default']
+    ToastContainer: typeof import('./src/components/ToastContainer.vue')['default']
   }
 }

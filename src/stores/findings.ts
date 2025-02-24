@@ -2,13 +2,17 @@ import { acceptHMRUpdate, defineStore } from "pinia";
 import type { Finding, BasicFinding } from "~/utils";
 import { getRandomColor } from "~/utils";
 
-function customFindingsStringify(findings: Finding[]): string {
+function customFindingsStringify(findings: (Finding | BasicFinding)[]): string {
   return JSON.stringify(findings, null, 4).replace(
     /"bounding_box": \[\s*([^\]]+?)\s*\]/gs,
     (match, arrayContent) => {
       return `"bounding_box": [${arrayContent.replace(/,\s*/g, ", ")}]`;
     },
   );
+}
+
+export function formatFindings(findings: (Finding | BasicFinding)[]): string {
+  return `<output>\n${customFindingsStringify(findings)}\n</output>`;
 }
 
 export const useFindingsStore = defineStore("findings", () => {
@@ -50,11 +54,7 @@ export const useFindingsStore = defineStore("findings", () => {
     return ids;
   }
 
-  const findingsFormatted = computed(() => {
-    const jsonified = customFindingsStringify(findings.value);
-
-    return `<output>\n${jsonified}\n</output>`;
-  });
+  const findingsFormatted = computed(() => formatFindings(findings.value));
 
   const findingsBoxes = computed(() => {
     return findings.value.map((finding) => {
