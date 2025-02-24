@@ -10,7 +10,7 @@ export const bboxSchema = z
   });
 export type BboxType = z.infer<typeof bboxSchema>;
 
-export const findingSchema = z.object({
+export const basicFindingSchema = z.object({
   label: z.string(),
   description: z.string(),
   explanation: z.string(),
@@ -18,7 +18,30 @@ export const findingSchema = z.object({
   severity: z.number(),
 });
 
+export type BasicFinding = z.infer<typeof basicFindingSchema>;
+
+export const findingSchema = z.object({
+  color: z.string(),
+  id: z.number(),
+  label: z.string(),
+  description: z.string(),
+  explanation: z.string(),
+  bounding_box: bboxSchema,
+  severity: z.number(),
+});
+
+export const getRandomColor = (): string => {
+  const letters = "0123456789ABCDEF";
+  let color = "#";
+  for (let i = 0; i < 6; i++) {
+    color += letters[Math.floor(Math.random() * 16)];
+  }
+  return color;
+};
+
 export const findingList = z.array(findingSchema);
+export const basicFindingList = z.array(basicFindingSchema);
+type basicFinding = z.infer<typeof basicFindingSchema>;
 
 export type Finding = z.infer<typeof findingSchema>;
 
@@ -37,7 +60,7 @@ export const safeParseJSON = (jsonString: string): any => {
   try {
     return JSON.parse(jsonString);
   } catch (error) {
-    return "";
+    return null;
   }
 };
 

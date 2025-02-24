@@ -22,14 +22,10 @@
       </div>
 
       <!-- Render the image and bounding boxes -->
-      <ImageCanvas
-        :imageUrl="imageUrl"
-        v-model:boundingBoxes="boundingBoxes"
-        v-if="imageUrl"
-      />
+      <ImageCanvas :imageUrl="imageUrl" v-if="imageUrl" />
 
       <!-- Bounding box inputs -->
-      <div v-if="imageUrl" class="space-y-4">
+      <!-- <div v-if="imageUrl" class="space-y-4">
         <div
           v-for="(box, index) in boundingBoxes"
           :key="box.id"
@@ -44,9 +40,9 @@
             ></span>
           </p>
         </div>
-      </div>
+      </div> -->
 
-      <TextInput v-model:bounding-boxes="extractedBoxes" />
+      <TextInput />
     </div>
   </div>
 </template>
@@ -54,21 +50,8 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import ImageCanvas from "~/components/ImageCanvas.vue";
-import { bboxSchema, BboxType } from "~/utils";
-
-interface BoundingBox {
-  id: number;
-  x_min: number;
-  y_min: number;
-  x_max: number;
-  y_max: number;
-  color: string;
-}
 
 const imageUrl = ref<string | null>(null);
-const boundingBoxes = ref<BoundingBox[]>([]);
-
-const extractedBoxes = ref<BboxType[]>([]);
 
 const handleFileSelect = (event: Event): void => {
   const target = event.target as HTMLInputElement;
@@ -100,31 +83,22 @@ const loadImage = (file: File): void => {
   reader.readAsDataURL(file);
 };
 
-const parseBoundingBox = (
-  input: string,
-): [number, number, number, number] | string => {
-  try {
-    const coords = JSON.parse(input.replace(/\s/g, ""));
-    const res = bboxSchema.safeParse(coords);
-    if (res.success) {
-      return res.data;
-    }
-    return res.error.message;
-  } catch (e) {
-    return "invalid format";
-  }
-};
+// const parseBoundingBox = (
+//   input: string,
+// ): [number, number, number, number] | string => {
+//   try {
+//     const coords = JSON.parse(input.replace(/\s/g, ""));
+//     const res = bboxSchema.safeParse(coords);
+//     if (res.success) {
+//       return res.data;
+//     }
+//     return res.error.message;
+//   } catch (e) {
+//     return "invalid format";
+//   }
+// };
 
-const deleteBox = (index: number) => {
-  boundingBoxes.value.splice(index, 1);
-};
-
-const getRandomColor = (): string => {
-  const letters: string = "0123456789ABCDEF";
-  let color: string = "#";
-  for (let i = 0; i < 6; i++) {
-    color += letters[Math.floor(Math.random() * 16)];
-  }
-  return color;
-};
+// const deleteBox = (index: number) => {
+//   boundingBoxes.value.splice(index, 1);
+// };
 </script>

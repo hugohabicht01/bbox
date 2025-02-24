@@ -9,7 +9,7 @@
       <img :src="imageUrl" ref="imageRef" class="max-w-full h-auto" />
       <!-- Render each bounding box -->
       <div
-        v-for="box in boxes"
+        v-for="box in findingsStore.findingsBoxes"
         :key="box.id"
         class="absolute border-2"
         :style="{
@@ -63,7 +63,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted, PropType } from "vue";
+import { ref, reactive, onMounted, onUnmounted } from "vue";
+import { useFindingsStore } from "~/stores/findings";
 
 interface BoundingBox {
   id: number;
@@ -88,20 +89,12 @@ interface ResizeState {
 // Props: imageUrl (one‑way) and boundingBoxes (v‑model)
 const props = defineProps({
   imageUrl: String,
-  boundingBoxes: {
-    type: Array as PropType<BoundingBox[]>,
-    default: () => [],
-  },
-});
-const emit = defineEmits(["update:boundingBoxes"]);
-
-const boxes = computed<BoundingBox[]>({
-  get: () => props.boundingBoxes,
-  set: (newBoxes) => emit("update:boundingBoxes", newBoxes),
 });
 
 const imageRef = ref<HTMLImageElement | null>(null);
 const containerRef = ref<HTMLDivElement | null>(null);
+
+const findingsStore = useFindingsStore();
 
 // --- RESIZE LOGIC (for existing boxes) ---
 const resizeState = reactive<ResizeState>({
@@ -172,7 +165,7 @@ const getHandleCursor = (handle: ResizeHandle): string => {
 
 const startResize = (e: MouseEvent, boxId: number, handle: ResizeHandle) => {
   e.preventDefault();
-  const box = boxes.value.find((b) => b.id === boxId);
+  const box = findingsStore.getBox(boxId);
   if (!box) return;
 
   resizeState.active = true;
@@ -193,34 +186,38 @@ const handleResize = (e: MouseEvent) => {
   const deltaX = e.clientX - resizeState.startX;
   const deltaY = e.clientY - resizeState.startY;
 
-  const box = boxes.value.find((b) => b.id === resizeState.boxId);
-  if (!box) return;
-
   const handle = resizeState.handle;
   const original = resizeState.originalBox;
 
-  if (handle?.includes("w")) box.x_min = original.x_min + deltaX;
-  if (handle?.includes("e")) box.x_max = original.x_max + deltaX;
-  if (handle?.includes("n")) box.y_min = original.y_min + deltaY;
-  if (handle?.includes("s")) box.y_max = original.y_max + deltaY;
+  let x_min = original.x_min;
+  let y_min = original.y_min;
+  let x_max = original.x_max;
+  let y_max = original.y_max;
+
+  if (handle?.includes("w")) x_min += deltaX;
+  if (handle?.includes("e")) x_max += deltaX;
+  if (handle?.includes("n")) y_min += deltaY;
+  if (handle?.includes("s")) y_max += deltaY;
 
   // Ensure min values don't exceed max values
-  if (box.x_min > box.x_max) {
-    const temp = box.x_min;
-    box.x_min = box.x_max;
-    box.x_max = temp;
+  if (x_min > x_max) {
+    const temp = x_min;
+    x_min = x_max;
+    x_max = temp;
   }
-  if (box.y_min > box.y_max) {
-    const temp = box.y_min;
-    box.y_min = box.y_max;
-    box.y_max = temp;
+  if (y_min > y_max) {
+    const temp = y_min;
+    y_min = y_max;
+    y_max = temp;
   }
 
-  // Round coordinates
-  box.x_min = Math.round(box.x_min);
-  box.x_max = Math.round(box.x_max);
-  box.y_min = Math.round(box.y_min);
-  box.y_max = Math.round(box.y_max);
+  const updatedBox = [x_min, y_min, x_max, y_max].map(Math.round) as [
+    number,
+    number,
+    number,
+    number,
+  ];
+  findingsStore.updateBox(resizeState.boxId, updatedBox);
 };
 
 const stopResize = () => {
@@ -239,15 +236,6 @@ const drawStartX = ref(0);
 const drawStartY = ref(0);
 const drawingBoxId = ref<number | null>(null);
 
-const getRandomColor = (): string => {
-  const letters = "0123456789ABCDEF";
-  let color = "#";
-  for (let i = 0; i < 6; i++) {
-    color += letters[Math.floor(Math.random() * 16)];
-  }
-  return color;
-};
-
 const startDrawing = (e: MouseEvent) => {
   // Only start drawing if the target is the image
   if (e.target !== imageRef.value) return;
@@ -260,19 +248,8 @@ const startDrawing = (e: MouseEvent) => {
   drawStartX.value = startX;
   drawStartY.value = startY;
 
-  const newId =
-    boxes.value.length > 0 ? Math.max(...boxes.value.map((b) => b.id)) + 1 : 0;
-  const newBox: BoundingBox = {
-    id: newId,
-    x_min: startX,
-    y_min: startY,
-    x_max: startX,
-    y_max: startY,
-    color: getRandomColor(),
-  };
-
+  const newId = findingsStore.addBox([startX, startY, startX, startY]);
   drawingBoxId.value = newId;
-  boxes.value.push(newBox);
 
   window.addEventListener("mousemove", handleDrawing);
   window.addEventListener("mouseup", stopDrawing);
@@ -285,13 +262,11 @@ const handleDrawing = (e: MouseEvent) => {
   const currentX = e.clientX - rect.left;
   const currentY = e.clientY - rect.top;
 
-  const box = boxes.value.find((b) => b.id === drawingBoxId.value);
-  if (!box) return;
-
-  box.x_min = Math.round(Math.min(drawStartX.value, currentX));
-  box.x_max = Math.round(Math.max(drawStartX.value, currentX));
-  box.y_min = Math.round(Math.min(drawStartY.value, currentY));
-  box.y_max = Math.round(Math.max(drawStartY.value, currentY));
+  const x_min = Math.round(Math.min(drawStartX.value, currentX));
+  const x_max = Math.round(Math.max(drawStartX.value, currentX));
+  const y_min = Math.round(Math.min(drawStartY.value, currentY));
+  const y_max = Math.round(Math.max(drawStartY.value, currentY));
+  findingsStore.updateBox(drawingBoxId.value, [x_min, y_min, x_max, y_max]);
 };
 
 const stopDrawing = () => {
@@ -316,8 +291,7 @@ const clearHoveredBox = () => {
 const handleKeydown = (e: KeyboardEvent) => {
   if (e.key === "Backspace" && hoveredBoxId.value !== null) {
     e.preventDefault();
-    boxes.value = boxes.value.filter((b) => b.id !== hoveredBoxId.value);
-    hoveredBoxId.value = null;
+    findingsStore.removeFinding(hoveredBoxId.value);
   }
 };
 
