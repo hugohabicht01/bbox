@@ -1,5 +1,6 @@
 import { acceptHMRUpdate, defineStore } from "pinia";
 import type { Finding, BasicFinding } from "~/utils";
+import { getSection, safeParseJSON, findingList } from "~/utils";
 import { getRandomColor } from "~/utils";
 
 function customFindingsStringify(findings: (Finding | BasicFinding)[]): string {
@@ -15,9 +16,46 @@ export function formatFindings(findings: (Finding | BasicFinding)[]): string {
   return `<output>\n${customFindingsStringify(findings)}\n</output>`;
 }
 
+export const getStructured = (text: string) => {
+  const output = safeParseJSON(getSection(text, "output"));
+  if (!output) {
+    return null;
+  }
+
+  const res = findingList.safeParse(output);
+  if (!res.success) return null;
+  return res.data;
+};
+
+export function formatForExport(rawText: string): string | null {
+  const structured = getStructured(rawText);
+  if (!structured) return null;
+
+  const cleaned = structured.map((finding) => ({
+    label: finding.label,
+    description: finding.description,
+    explanation: finding.explanation,
+    bounding_box: finding.bounding_box,
+    severity: finding.severity,
+  }));
+
+  const formattedCleaned = formatFindings(cleaned);
+
+  return rawText.replace(/<output>.*<\/output>/s, formattedCleaned);
+}
+
 export const useFindingsStore = defineStore("findings", () => {
   const findings = ref<Finding[]>([]);
   const highestId = ref(1);
+
+  const rawText = ref("");
+
+  function setRawText(text: string) {
+    rawText.value = text;
+  }
+
+  const getRawText = computed(() => rawText.value);
+  const formattedForExport = () => formatForExport(rawText.value) ?? undefined;
 
   function addFinding(finding: BasicFinding) {
     const id = highestId.value++;
@@ -99,12 +137,22 @@ export const useFindingsStore = defineStore("findings", () => {
     finding.bounding_box = newBox;
   }
 
+  function updateAllFindings(updatedFindings: Finding[]) {
+    findings.value = updatedFindings;
+  }
+
   function removeFinding(id: number) {
     findings.value = findings.value.filter((f) => f.id !== id);
   }
 
   function clearFindings() {
     findings.value = [];
+  }
+
+  function $reset() {
+    findings.value = [];
+    rawText.value = "";
+    highestId.value = 1;
   }
 
   return {
@@ -118,6 +166,11 @@ export const useFindingsStore = defineStore("findings", () => {
     findingsBoxes,
     getBox,
     updateBox,
+    setRawText,
+    getRawText,
+    updateAllFindings,
+    formattedForExport,
+    $reset,
   };
 });
 

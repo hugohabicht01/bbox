@@ -2,7 +2,7 @@
   <div class="py-4 text-black" @keydown.ctrl.c.prevent="exportToClipboard">
     <textarea
       v-model="rawText"
-      class="rounded-lg border border-black shadow-lg w-full h-40vh p-4"
+      class="rounded-lg border border-gray-200 shadow-lg w-full h-40vh p-4"
     />
   </div>
   <div class="flex flex-col p-4">
@@ -20,6 +20,7 @@
     <pre v-if="!textIsValid" class="text-red-500">{{ errorText }}</pre>
     <div class="[&>*]:m-4 [&>*]:px-4 [&>*]:py-2">
       <button @click="resetText" class="btn">Reset text</button>
+      <button @click="clearAllLabels" class="btn">Reset all</button>
       <button
         @click="exportToClipboard"
         class="btn active:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -41,19 +42,34 @@ import {
   basicFindingList,
 } from "~/utils";
 
-import { useFindingsStore, formatFindings } from "~/stores/findings";
+import { useFindingsStore, formatForExport } from "~/stores/findings";
+import { useImagesStore } from "~/stores/images";
 
 const rawText = ref("");
 
 const findingsStore = useFindingsStore();
+const imageStore = useImagesStore();
+
+const clearAllLabels = () => {
+  if (window.confirm("Do you really want to clear ALL labels?")) {
+    imageStore.clearAllLabels();
+  }
+};
 
 const errorText = ref<string>("");
 const textIsValid = computed(() => errorText.value.length === 0);
 
 const copied = ref(false);
 
-// TODO: watch out with cyclical effects, such as findingsStore updates which update the text
+watch(
+  () => findingsStore.getRawText,
+  (newRaw) => {
+    rawText.value = newRaw; // should trigger the watcher below
+  },
+);
+
 watch(rawText, (newText) => {
+  findingsStore.setRawText(newText);
   // probably cleared on purpose
   if (newText === "") {
     findingsStore.clearFindings();
@@ -66,7 +82,8 @@ watch(rawText, (newText) => {
 watch(
   () => findingsStore.findingsFormatted,
   (newFindings) => {
-    if (newFindings === rawText.value) return;
+    const currentOutput = rawText.value.match(/<output>.*<\/output>/gs);
+    if (currentOutput && currentOutput[0] === newFindings) return;
 
     // Update the raw text based on the formatted findings
     updateRawText(newFindings);
@@ -88,6 +105,7 @@ const syncTextToStore = (text: string) => {
   const res = findingList.safeParse(output);
   if (res.success) {
     errorText.value = "";
+    findingsStore.updateAllFindings(res.data);
     return;
   }
 
@@ -114,37 +132,10 @@ const resetText = () => {
   rawText.value = "<think>\n</think>\n<output>\n</output>";
 };
 
-const getStructuredPure = (text: string) => {
-  console.log("getStructuredPure");
-  const output = safeParseJSON(getSection(text, "output"));
-  if (!output) {
-    return null;
-  }
-
-  const res = findingList.safeParse(output);
-  if (!res.success) return null;
-  return res.data;
-};
-
 const exportToClipboard = () => {
-  console.log("exportToClipboard");
-  const structured = getStructuredPure(rawText.value);
-  if (!structured) return;
-
-  const cleaned = structured.map((finding) => ({
-    label: finding.label,
-    description: finding.description,
-    explanation: finding.explanation,
-    bounding_box: finding.bounding_box,
-    severity: finding.severity,
-  }));
-  console.log(cleaned);
-
-  const formattedCleaned = formatFindings(cleaned);
-
-  const fullText = rawText.value;
-  const final = fullText.replace(/<output>.*<\/output>/s, formattedCleaned);
-  navigator.clipboard.writeText(final);
+  const formatted = formatForExport(rawText.value);
+  if (!formatted) return;
+  navigator.clipboard.writeText(formatted);
 
   copied.value = true;
   setTimeout(() => {
