@@ -1,6 +1,15 @@
 import { acceptHMRUpdate, defineStore } from "pinia";
 import { ref, computed } from "vue";
-import { formatForExport, useFindingsStore } from "./findings";
+import { useFindingsStore } from "./findings";
+
+function naturalSortFilenames(filenames: ImageItem[]) {
+  return filenames.sort((a, b) =>
+    new Intl.Collator(undefined, {
+      numeric: true,
+      sensitivity: "base",
+    }).compare(a.file.name, b.file.name),
+  );
+}
 
 export interface ImageItem {
   url: string;
@@ -100,8 +109,13 @@ export const useImagesStore = defineStore("images", () => {
     findingStore.$reset();
   };
 
+  const sortedImages = computed(() => {
+    return naturalSortFilenames(images.value);
+  });
+
   return {
     images,
+    sortedImages,
     selectedImageIndex,
     selectedImage,
     addImage,

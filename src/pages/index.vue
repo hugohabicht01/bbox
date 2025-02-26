@@ -6,7 +6,7 @@
         <h2 class="text-lg font-semibold mb-4">Images</h2>
         <div class="space-y-3 overflow-y-auto flex-1">
           <div
-            v-for="(img, index) in imagesStore.images"
+            v-for="(img, index) in imagesStore.sortedImages"
             :key="index"
             class="cursor-pointer relative group"
             @click="imagesStore.selectImage(index)"
