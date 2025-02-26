@@ -1,9 +1,22 @@
 <template>
   <div class="py-4 text-black" @keydown.ctrl.c.prevent="exportToClipboard">
-    <textarea
-      v-model="rawText"
-      class="rounded-lg border border-gray-200 shadow-lg w-full h-40vh p-4"
-    />
+    <div class="flex gap-4">
+      <textarea
+        v-model="rawText"
+        class="rounded-lg border border-gray-200 shadow-lg w-2/3 h-40vh p-4"
+      />
+      <div class="findings-list w-1/3 overflow-y-auto h-40vh pr-2 custom-scrollbar">
+        <h2 class="text-lg font-semibold mb-3 text-gray-700">Findings</h2>
+        <div v-if="findingsStore.findings.length === 0" class="text-gray-500 italic text-sm">
+          No findings to display
+        </div>
+        <FindingDisplay 
+          v-for="finding in findingsStore.findings" 
+          :key="finding.id" 
+          :finding="finding" 
+        />
+      </div>
+    </div>
   </div>
   <div class="flex flex-col p-4">
     <p
@@ -34,7 +47,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { ref, watch, computed } from "vue";
 import {
   getSection,
   findingList,
@@ -44,6 +57,7 @@ import {
 
 import { useFindingsStore, formatForExport } from "~/stores/findings";
 import { useImagesStore } from "~/stores/images";
+import FindingDisplay from "~/components/FindingDisplay.vue";
 
 const rawText = ref("");
 
@@ -143,3 +157,23 @@ const exportToClipboard = () => {
   }, 500);
 };
 </script>
+
+<style scoped>
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #ddd;
+  border-radius: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #ccc;
+}
+</style>
