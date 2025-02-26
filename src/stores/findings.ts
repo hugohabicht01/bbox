@@ -141,6 +141,13 @@ export const useFindingsStore = defineStore("findings", () => {
     findings.value = updatedFindings;
   }
 
+  function updateFinding(updatedFinding: Finding) {
+    const index = findings.value.findIndex((f) => f.id === updatedFinding.id);
+    if (index !== -1) {
+      findings.value[index] = updatedFinding;
+    }
+  }
+
   function removeFinding(id: number) {
     findings.value = findings.value.filter((f) => f.id !== id);
   }
@@ -166,6 +173,7 @@ export const useFindingsStore = defineStore("findings", () => {
     findingsBoxes,
     getBox,
     updateBox,
+    updateFinding,
     setRawText,
     getRawText,
     updateAllFindings,

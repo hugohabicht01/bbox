@@ -13,7 +13,8 @@
         <FindingDisplay 
           v-for="finding in findingsStore.findings" 
           :key="finding.id" 
-          :finding="finding" 
+          :finding="finding"
+          @update:finding="updateFinding"
         />
       </div>
     </div>
@@ -53,6 +54,7 @@ import {
   findingList,
   safeParseJSON,
   basicFindingList,
+  type Finding,
 } from "~/utils";
 
 import { useFindingsStore, formatForExport } from "~/stores/findings";
@@ -144,6 +146,11 @@ const updateRawText = (newOutputText: string) => {
 
 const resetText = () => {
   rawText.value = "<think>\n</think>\n<output>\n</output>";
+};
+
+const updateFinding = (updatedFinding: Finding) => {
+  // Update the finding in the store
+  findingsStore.updateFinding(updatedFinding);
 };
 
 const exportToClipboard = () => {
