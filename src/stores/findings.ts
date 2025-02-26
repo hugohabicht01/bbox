@@ -96,11 +96,12 @@ export const useFindingsStore = defineStore("findings", () => {
 
   const findingsBoxes = computed(() => {
     return findings.value.map((finding) => {
-      const { id, color, bounding_box } = finding;
+      const { id, color, bounding_box, label } = finding;
       const [x_min, y_min, x_max, y_max] = bounding_box;
       return {
         id,
         color,
+        label,
         x_min,
         y_min,
         x_max,
@@ -114,11 +115,12 @@ export const useFindingsStore = defineStore("findings", () => {
 
     const finding = findings.value.find((f) => f.id === id);
     if (!finding) return null;
-    const { color, bounding_box } = finding;
+    const { color, bounding_box, label } = finding;
     const [x_min, y_min, x_max, y_max] = bounding_box;
     return {
       id,
       color,
+      label,
       x_min,
       y_min,
       x_max,

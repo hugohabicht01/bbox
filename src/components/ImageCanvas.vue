@@ -29,7 +29,7 @@
           class="absolute -top-6 left-0 px-2 py-1 text-sm text-white rounded"
           :style="{ backgroundColor: box.color }"
         >
-          ID: {{ box.id }}
+          {{ box.label || `Box ${box.id}` }}
         </span>
 
         <!-- Resize handles (corners) -->
@@ -73,6 +73,7 @@ interface BoundingBox {
   x_max: number;
   y_max: number;
   color: string;
+  label: string;
 }
 
 type ResizeHandle = "n" | "s" | "e" | "w" | "nw" | "ne" | "se" | "sw";
@@ -86,8 +87,8 @@ interface ResizeState {
   originalBox: BoundingBox | null;
 }
 
-// Props: imageUrl (one‑way) and boundingBoxes (v‑model)
-const props = defineProps({
+// Props: imageUrl (one‑way)
+defineProps({
   imageUrl: String,
 });
 

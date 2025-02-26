@@ -15,6 +15,7 @@
           :key="finding.id" 
           :finding="finding"
           @update:finding="updateFinding"
+          @delete="handleDeleteFinding"
         />
       </div>
     </div>
@@ -151,6 +152,11 @@ const resetText = () => {
 const updateFinding = (updatedFinding: Finding) => {
   // Update the finding in the store
   findingsStore.updateFinding(updatedFinding);
+};
+
+const handleDeleteFinding = (id: number) => {
+  // The actual removal is handled in the FindingDisplay component
+  // This is just a hook in case we need to do additional cleanup
 };
 
 const exportToClipboard = () => {

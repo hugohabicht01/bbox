@@ -2,6 +2,9 @@
   <div
     class="finding-card p-3 rounded-lg shadow-md mb-2"
     :style="{ borderLeft: `4px solid ${finding.color}` }"
+    tabindex="0"
+    @mouseenter="isHovered = true"
+    @mouseleave="isHovered = false"
   >
     <div class="flex justify-between items-start mb-2">
       <input
@@ -20,6 +23,13 @@
           class="bg-gray-100 px-2 py-1 rounded text-sm w-12 focus:outline-none focus:ring-1 focus:ring-blue-500"
           @change="updateFinding"
         />
+        <button
+          class="ml-2 p-1 text-red-500 hover:text-red-700 transition-colors"
+          @click="deleteFinding"
+          title="Delete finding"
+        >
+          <div class="i-carbon-trash-can text-lg"></div>
+        </button>
       </div>
     </div>
 
@@ -49,6 +59,7 @@
 <script setup lang="ts">
 import { ref, reactive, watch } from "vue";
 import type { Finding } from "~/utils";
+import { useFindingsStore } from "~/stores/findings";
 
 const props = defineProps<{
   finding: Finding;
@@ -56,7 +67,14 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: "update:finding", finding: Finding): void;
+  (e: "delete", id: number): void;
 }>();
+
+// Create state for hover detection
+const isHovered = ref(false);
+
+// Access the findings store
+const findingsStore = useFindingsStore();
 
 // Create a reactive copy of the finding to edit
 const editedFinding = reactive<Finding>({
@@ -83,6 +101,12 @@ const formatBbox = (bbox: [number, number, number, number]) => {
 // Function to emit update event
 const updateFinding = () => {
   emit("update:finding", { ...editedFinding });
+};
+
+// Function to delete the finding
+const deleteFinding = () => {
+  findingsStore.removeFinding(props.finding.id);
+  emit("delete", props.finding.id);
 };
 </script>
 
