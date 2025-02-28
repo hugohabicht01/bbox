@@ -1,35 +1,62 @@
 import { acceptHMRUpdate, defineStore } from "pinia";
 import { ref, computed } from "vue";
-import { customFindingsStringify, useFindingsStore } from "./findings";
+import { useFindingsStore } from "./findings";
 import {
   basicFinding,
-  basicTextValidator,
   Finding,
-  getSection,
-  getStructuredBasicFindings,
   InternalRepr,
   getRandomColor,
 } from "~/utils";
 import { z } from "zod";
 
 const migrateToInternalRepr = (json: string) => {
-  const data = JSON.parse(json);
   try {
+    const data = JSON.parse(json);
+    
     const migrated = Object.keys(data).map((key) => {
-      const formatted = data[key];
-      const validated = basicTextValidator.parse(formatted);
-
-      // these are guaranteed to exist after the successful validation
-      const thinkSection = getSection(formatted, "think");
-
-      const structuredBasicFindings = getStructuredBasicFindings(validated);
-      if (!structuredBasicFindings) {
-        throw new Error(`Invalid basic findings for ${key}`);
+      // Expecting data directly in InternalRepr format or compatible format
+      const fileData = data[key];
+      let internalRepr: InternalRepr;
+      
+      if (fileData.think !== undefined && Array.isArray(fileData.output)) {
+        // Already in InternalRepr format
+        const basicFindings = fileData.output;
+        const output = basicToNormalized(basicFindings);
+        internalRepr = { 
+          think: fileData.think,
+          output 
+        };
+      } else if (typeof fileData === 'string') {
+        // Legacy format - try to parse from string with tags
+        try {
+          // Check if it's using the old <think></think> and <o></o> format
+          const thinkMatch = fileData.match(/<think>([\s\S]*?)<\/think>/);
+          const outputMatch = fileData.match(/<o>([\s\S]*?)<\/o>/);
+          
+          if (thinkMatch && outputMatch) {
+            const thinkContent = thinkMatch[1].trim();
+            const outputContent = outputMatch[1].trim();
+            
+            // Parse output JSON
+            const basicFindings = JSON.parse(outputContent);
+            const output = basicToNormalized(basicFindings);
+            
+            internalRepr = { 
+              think: thinkContent,
+              output 
+            };
+          } else {
+            throw new Error(`Invalid format for ${key}`);
+          }
+        } catch (parseError) {
+          console.error(`Error parsing legacy format for ${key}:`, parseError);
+          throw parseError;
+        }
+      } else {
+        throw new Error(`Unknown data format for ${key}`);
       }
 
-      const output = basicToNormalized(structuredBasicFindings);
-
-      return { labels: { think: thinkSection, output }, file_name: key };
+      return { labels: internalRepr, file_name: key };
     }) satisfies { file_name: string; labels: InternalRepr }[];
 
     return migrated;
@@ -41,12 +68,6 @@ const migrateToInternalRepr = (json: string) => {
     }
     return null;
   }
-};
-
-const internalReprToString = (internalRepr: InternalRepr) => {
-  const formattedOutput = customFindingsStringify(internalRepr.output);
-
-  return `<think>\n${internalRepr.think}\n</think>\n<output>\n${formattedOutput}\n</output>`;
 };
 
 const basicToNormalized = (basicFindings: basicFinding[]): Finding[] => {
@@ -83,7 +104,7 @@ export interface ImageItem {
 export const useImagesStore = defineStore("images", () => {
   const images = ref<ImageItem[]>([]);
   const selectedImageIndex = ref<number>(-1);
-  const allLabels = ref<{ [key: string]: string }>({});
+  const allLabels = ref<{ [key: string]: InternalRepr }>({});
 
   const findingStore = useFindingsStore();
 
@@ -123,10 +144,8 @@ export const useImagesStore = defineStore("images", () => {
   const saveCurrentToAllLabels = () => {
     const key = currentFileName.value;
     if (key) {
-      const formatted = findingStore.formattedForExport();
-      if (formatted) {
-        allLabels.value[key] = formatted;
-      }
+      // Save the current internal representation directly
+      allLabels.value[key] = findingStore.internalRepr;
     }
   };
 
@@ -139,34 +158,35 @@ export const useImagesStore = defineStore("images", () => {
 
     migrated.forEach((data) => {
       const { file_name, labels } = data;
-      allLabels.value[file_name] = internalReprToString(labels);
+      allLabels.value[file_name] = labels;
     });
 
     if (currentFileName.value) {
-      // update the current file's data with the loaded labels
-      findingStore.setRawText(allLabels.value[currentFileName.value]);
+      // Update the current file's data with the loaded labels
+      const currentLabels = allLabels.value[currentFileName.value];
+      if (currentLabels) {
+        findingStore.setInternalRepr(currentLabels);
+      }
     }
 
     return true;
   };
 
   const selectImage = (index: number): void => {
-    // save
+    // Save current image data
     saveCurrentToAllLabels();
-    // then do reset and get the next one
+    // Reset store and select new image
     findingStore.$reset();
     selectedImageIndex.value = index;
-    // load new
-    const oldLabels = allLabels.value[currentFileName.value ?? ""];
-    if (!oldLabels) {
-      return;
+    
+    // Load data for the new image
+    const imageLabels = allLabels.value[currentFileName.value ?? ""];
+    if (imageLabels) {
+      findingStore.setInternalRepr(imageLabels);
     }
-
-    findingStore.setRawText(oldLabels);
   };
 
   const deleteImage = (index: number): void => {
-    // TODO: does not delete the bounding box
     images.value.splice(index, 1);
     if (selectedImageIndex.value === index) {
       const newIndex = Math.min(index, images.value.length - 1);

@@ -54,7 +54,11 @@ export const findingToBasicFinding = (finding: Finding) => ({
 
 export const internalToExport = (internal: InternalRepr): string => {
   const { think, output } = internal;
-  // TODO
+  
+  return JSON.stringify({
+    think,
+    output: output.map(findingToBasicFinding)
+  }, null, 2);
 };
 
 export const basicTextValidator = z

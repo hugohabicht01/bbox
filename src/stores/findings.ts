@@ -1,8 +1,6 @@
 import { acceptHMRUpdate, defineStore } from "pinia";
-import type { Finding, BasicFinding } from "~/utils";
+import type { Finding, BasicFinding, InternalRepr } from "~/utils";
 import {
-  getSection,
-  safeParseJSON,
   findingList,
   findingToBasicFinding,
 } from "~/utils";
@@ -20,43 +18,42 @@ export function customFindingsStringify(
 }
 
 export function formatFindings(findings: (Finding | BasicFinding)[]): string {
-  return `<output>\n${customFindingsStringify(findings)}\n</output>`;
+  return customFindingsStringify(findings);
 }
 
-export const getStructured = (text: string) => {
-  const output = safeParseJSON(getSection(text, "output"));
-  if (!output) {
-    return null;
-  }
+export function formatForExport(internalRepr: InternalRepr): string | null {
+  if (!internalRepr.output) return null;
 
-  const res = findingList.safeParse(output);
-  if (!res.success) return null;
-  return res.data;
-};
-
-export function formatForExport(rawText: string): string | null {
-  const structured = getStructured(rawText);
-  if (!structured) return null;
-
-  const cleaned = structured.map(findingToBasicFinding);
-
-  const formattedCleaned = formatFindings(cleaned);
-
-  return rawText.replace(/<output>.*<\/output>/s, formattedCleaned);
+  const cleaned = internalRepr.output.map(findingToBasicFinding);
+  
+  return JSON.stringify({
+    think: internalRepr.think,
+    output: cleaned
+  }, null, 2);
 }
 
 export const useFindingsStore = defineStore("findings", () => {
   const findings = ref<Finding[]>([]);
+  const thinkText = ref<string>("");
   const highestId = ref(1);
 
-  const rawText = ref("");
+  // The internal representation is the single source of truth
+  const internalRepr = computed<InternalRepr>(() => ({
+    think: thinkText.value,
+    output: findings.value
+  }));
 
-  function setRawText(text: string) {
-    rawText.value = text;
+  function setThinkText(text: string) {
+    thinkText.value = text;
   }
 
-  const getRawText = computed(() => rawText.value);
-  const formattedForExport = () => formatForExport(rawText.value) ?? undefined;
+  function setInternalRepr(repr: InternalRepr) {
+    thinkText.value = repr.think || "";
+    updateAllFindings(repr.output || []);
+  }
+
+  const getInternalRepr = computed(() => internalRepr.value);
+  const formattedForExport = () => formatForExport(internalRepr.value);
 
   function addFinding(finding: BasicFinding) {
     const id = highestId.value++;
@@ -93,6 +90,7 @@ export const useFindingsStore = defineStore("findings", () => {
     return ids;
   }
 
+  // Now only formats the findings part, not the full text with tags
   const findingsFormatted = computed(() => formatFindings(findings.value));
 
   const findingsBoxes = computed(() => {
@@ -161,7 +159,7 @@ export const useFindingsStore = defineStore("findings", () => {
 
   function $reset() {
     findings.value = [];
-    rawText.value = "";
+    thinkText.value = "";
     highestId.value = 1;
   }
 
@@ -177,8 +175,11 @@ export const useFindingsStore = defineStore("findings", () => {
     getBox,
     updateBox,
     updateFinding,
-    setRawText,
-    getRawText,
+    setThinkText,
+    setInternalRepr,
+    getInternalRepr,
+    internalRepr,
+    thinkText,
     updateAllFindings,
     formattedForExport,
     $reset,

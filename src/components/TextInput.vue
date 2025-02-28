@@ -1,10 +1,14 @@
 <template>
   <div class="py-4 text-black" @keydown.ctrl.c.prevent="exportToClipboard">
     <div class="grid grid-cols-2 gap-4">
-      <textarea
-        v-model="rawText"
-        class="rounded-lg border border-gray-200 shadow-lg h-40vh p-4"
-      />
+      <div class="h-40vh">
+        <h2 class="text-lg font-semibold mb-3 text-gray-700">Thinking</h2>
+        <textarea
+          v-model="thinkText"
+          class="rounded-lg border border-gray-200 shadow-lg h-36vh p-4 w-full"
+          placeholder="Enter thinking notes here..."
+        />
+      </div>
       <div class="findings-list overflow-y-auto h-40vh pr-2 custom-scrollbar">
         <h2 class="text-lg font-semibold mb-3 text-gray-700">Findings</h2>
         <div
@@ -35,7 +39,6 @@
     >
       Copied!
     </p>
-    <pre v-if="!textIsValid" class="text-red-500">{{ errorText }}</pre>
     <div class="flex [&>*]:m-4 [&>*]:px-4 [&>*]:py-2">
       <button @click="resetText" class="btn bg-red-500 hover:bg-red-600">
         Reset text
@@ -45,8 +48,7 @@
       </button>
       <button
         @click="exportToClipboard"
-        class="btn active:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
-        :disabled="!textIsValid"
+        class="btn active:bg-gray-200"
       >
         Copy
         <div class="i-carbon-copy inline-block vertical-sub"></div>
@@ -58,18 +60,14 @@
 <script setup lang="ts">
 import { ref, watch, computed } from "vue";
 import {
-  getSection,
-  findingList,
-  safeParseJSON,
-  basicFindingList,
   type Finding,
 } from "~/utils";
 
-import { useFindingsStore, formatForExport } from "~/stores/findings";
+import { useFindingsStore } from "~/stores/findings";
 import { useImagesStore } from "~/stores/images";
 import FindingDisplay from "~/components/FindingDisplay.vue";
 
-const rawText = ref("");
+const thinkText = ref("");
 
 const findingsStore = useFindingsStore();
 const imageStore = useImagesStore();
@@ -80,84 +78,27 @@ const clearAllLabels = () => {
   }
 };
 
-const errorText = ref<string>("");
-const textIsValid = computed(() => errorText.value.length === 0);
-
 const copied = ref(false);
 
+// Update thinkText whenever the store's thinkText changes
 watch(
-  () => findingsStore.getRawText,
-  (newRaw) => {
-    rawText.value = newRaw; // should trigger the watcher below
+  () => findingsStore.thinkText,
+  (newThink) => {
+    thinkText.value = newThink;
   },
 );
 
-watch(rawText, (newText) => {
-  findingsStore.setRawText(newText);
-  // probably cleared on purpose
-  if (newText === "") {
-    findingsStore.clearFindings();
-    return;
-  }
-
-  syncTextToStore(newText);
+// Update the store's thinkText whenever the local thinkText changes
+watch(thinkText, (newText) => {
+  findingsStore.setThinkText(newText);
 });
 
-watch(
-  () => findingsStore.findingsFormatted,
-  (newFindings) => {
-    const currentOutput = rawText.value.match(/<output>.*<\/output>/gs);
-    if (currentOutput && currentOutput[0] === newFindings) return;
-
-    // Update the raw text based on the formatted findings
-    updateRawText(newFindings);
-  },
-);
-
-const syncTextToStore = (text: string) => {
-  const output = safeParseJSON(getSection(text, "output"));
-  if (!output) {
-    // we consider empty string to be ok
-    if (output === "") {
-      errorText.value = "";
-      return;
-    }
-    errorText.value = "Invalid JSON";
-    return;
-  }
-
-  const res = findingList.safeParse(output);
-  if (res.success) {
-    errorText.value = "";
-    findingsStore.updateAllFindings(res.data);
-    return;
-  }
-
-  // text might be still in basic form
-  const basicRes = basicFindingList.safeParse(output);
-  if (!basicRes.success) {
-    errorText.value = basicRes.error.message;
-    return;
-  }
-
-  // this doesn't feel like the right place to do this
-  errorText.value = "";
-  return findingsStore.addFindings(basicRes.data);
-};
-
-const updateRawText = (newOutputText: string) => {
-  if (rawText.value.search("<output>") === -1) {
-    rawText.value = `<think>\n</think>\n<output>\n</output>`;
-  }
-  rawText.value = rawText.value.replace(/<output>.*<\/output>/s, newOutputText);
-};
-
 const resetText = () => {
-  rawText.value = "<think>\n</think>\n<output>\n</output>";
+  findingsStore.setThinkText("");
+  findingsStore.clearFindings();
 };
 
 const updateFinding = (updatedFinding: Finding) => {
-  // Update the finding in the store
   findingsStore.updateFinding(updatedFinding);
 };
 
@@ -167,7 +108,7 @@ const handleDeleteFinding = (id: number) => {
 };
 
 const exportToClipboard = () => {
-  const formatted = formatForExport(rawText.value);
+  const formatted = findingsStore.formattedForExport();
   if (!formatted) return;
   navigator.clipboard.writeText(formatted);
 
