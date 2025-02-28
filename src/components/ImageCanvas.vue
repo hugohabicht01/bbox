@@ -333,11 +333,21 @@ const clearHoveredBox = () => {
   hoveredBoxId.value = null;
 };
 
+watch(findingsStore.findingsBoxes, () => {
+  // Reset hovered box when there are no boxes left.
+  // otherwise you can end up with a bug where you
+  // cant use backspace to delete text because the just deleted box is still "hovered"
+  if (findingsStore.findingsBoxes.length === 0) {
+    clearHoveredBox();
+  }
+});
+
 // Listen for keydown events (specifically Backspace) to delete the hovered box.
 const handleKeydown = (e: KeyboardEvent) => {
   if (e.key === "Backspace" && hoveredBoxId.value !== null) {
     e.preventDefault();
     findingsStore.removeFinding(hoveredBoxId.value);
+    clearHoveredBox();
   }
 };
 
