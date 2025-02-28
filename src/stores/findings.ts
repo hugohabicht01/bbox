@@ -24,6 +24,8 @@ export const useFindingsStore = defineStore("findings", () => {
   const findings = ref<Finding[]>([]);
   const thinkText = ref<string>("");
 
+  const enablePrefill = ref(true);
+
   // The internal representation is the single source of truth
   const internalRepr = computed<InternalRepr>(() => ({
     think: thinkText.value,
@@ -50,18 +52,50 @@ export const useFindingsStore = defineStore("findings", () => {
     return id;
   }
 
+  function generatePrefill(): {
+    label: string;
+    severity: number;
+    description: string;
+    explanation: string;
+  } {
+    if (!enablePrefill.value)
+      return {
+        label: "",
+        severity: 5,
+        description: "",
+        explanation: "",
+      };
+    if (findings.value.length > 0) {
+      // prefill with last data
+      return {
+        label: findings.value.at(-1)!.label,
+        severity: findings.value.at(-1)!.severity,
+        description: findings.value.at(-1)!.description,
+        explanation: findings.value.at(-1)!.explanation,
+      };
+    }
+    return {
+      label: "New Finding",
+      severity: 5,
+      description: "This is a new finding.",
+      explanation: "This is an explanation for the new finding.",
+    };
+  }
+
   function addBox(bbox: [number, number, number, number]) {
     const id = nanoid();
     const color = getRandomColor();
+
+    const prefill = generatePrefill();
 
     findings.value.push({
       id,
       color,
       bounding_box: bbox,
-      label: "",
-      severity: 5,
-      description: "",
-      explanation: "",
+      label: prefill.label,
+      severity: prefill.severity,
+      description: prefill.description,
+      explanation: prefill.explanation,
     });
     return id;
   }
@@ -168,6 +202,7 @@ export const useFindingsStore = defineStore("findings", () => {
     thinkText,
     updateAllFindings,
     formattedForExport,
+    enablePrefill,
     $reset,
   };
 });

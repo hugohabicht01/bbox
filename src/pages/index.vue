@@ -94,7 +94,6 @@ onKeyStroke("ArrowLeft", (e) => {
 
 const exportAllFindings = () => {
   const exportData = imagesStore.exportAllFindings();
-  console.log(exportData);
   // download the data as JSON, so format
   const blob = new Blob([exportData], {
     type: "application/json",
