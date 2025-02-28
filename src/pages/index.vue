@@ -67,13 +67,28 @@
 
         <TextInput />
 
-        <div class="flex flex-col">
-          <button @click="exportAllFindings" class="btn px-4 py-2">
+        <div
+          class="flex flex-row gap-4 items-center [&>*]:px-4 [&>*]:py-2 [&>*]:w-full"
+        >
+          <button @click="exportAllFindings" class="btn">
             <div class="flex flex-row items-center justify-center">
               <span>Export to JSON</span>
               <div class="i-carbon-export w-4 h-4 ml-4"></div>
             </div>
           </button>
+
+          <label class="btn cursor-pointer relative overflow-hidden">
+            <div class="flex flex-row items-center justify-center">
+              <span>Load from JSON</span>
+              <div class="i-carbon-upload w-4 h-4 ml-4"></div>
+              <input
+                type="file"
+                accept=".json"
+                @change="handleFileUpload"
+                class="absolute inset-0 opacity-0 cursor-pointer"
+              />
+            </div>
+          </label>
         </div>
       </div>
     </div>
@@ -99,6 +114,37 @@ const exportAllFindings = () => {
   link.href = url;
   link.download = "export.json";
   link.click();
+};
+
+const handleFileUpload = (event: Event) => {
+  const target = event.target as HTMLInputElement;
+  if (!target.files || target.files.length === 0) return;
+
+  const file = target.files[0];
+  const reader = new FileReader();
+
+  reader.onload = (e) => {
+    if (e.target?.result) {
+      try {
+        loadLabelsFromJSON(e.target.result as string);
+      } catch (error) {
+        console.error("Error parsing JSON file:", error);
+      }
+    }
+  };
+
+  reader.readAsText(file);
+
+  // Reset the input to allow loading the same file again
+  target.value = "";
+};
+
+const loadLabelsFromJSON = (jsonData: string) => {
+  const success = imagesStore.loadJSON(jsonData);
+  if (!success) {
+    // TODO: replace with some toast
+    console.error("Failed to load JSON data");
+  }
 };
 
 const deleteAllImages = () => {

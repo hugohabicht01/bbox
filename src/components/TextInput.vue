@@ -1,13 +1,11 @@
 <template>
   <div class="py-4 text-black" @keydown.ctrl.c.prevent="exportToClipboard">
-    <div class="flex gap-4">
+    <div class="grid grid-cols-2 gap-4">
       <textarea
         v-model="rawText"
-        class="rounded-lg border border-gray-200 shadow-lg w-2/3 h-40vh p-4"
+        class="rounded-lg border border-gray-200 shadow-lg h-40vh p-4"
       />
-      <div
-        class="findings-list w-1/3 overflow-y-auto h-40vh pr-2 custom-scrollbar"
-      >
+      <div class="findings-list overflow-y-auto h-40vh pr-2 custom-scrollbar">
         <h2 class="text-lg font-semibold mb-3 text-gray-700">Findings</h2>
         <div
           v-if="findingsStore.findings.length === 0"
@@ -38,9 +36,13 @@
       Copied!
     </p>
     <pre v-if="!textIsValid" class="text-red-500">{{ errorText }}</pre>
-    <div class="[&>*]:m-4 [&>*]:px-4 [&>*]:py-2">
-      <button @click="resetText" class="btn">Reset text</button>
-      <button @click="clearAllLabels" class="btn">Reset all</button>
+    <div class="flex [&>*]:m-4 [&>*]:px-4 [&>*]:py-2">
+      <button @click="resetText" class="btn bg-red-500 hover:bg-red-600">
+        Reset text
+      </button>
+      <button @click="clearAllLabels" class="btn bg-red-500 hover:bg-red-600">
+        Reset all
+      </button>
       <button
         @click="exportToClipboard"
         class="btn active:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -49,15 +51,6 @@
         Copy
         <div class="i-carbon-copy inline-block vertical-sub"></div>
       </button>
-      <label class="btn cursor-pointer relative overflow-hidden">
-        Load from JSON
-        <input
-          type="file"
-          accept=".json"
-          @change="handleFileUpload"
-          class="absolute inset-0 opacity-0 cursor-pointer"
-        />
-      </label>
     </div>
   </div>
 </template>
@@ -182,40 +175,6 @@ const exportToClipboard = () => {
   setTimeout(() => {
     copied.value = false;
   }, 500);
-};
-
-const handleFileUpload = (event: Event) => {
-  const target = event.target as HTMLInputElement;
-  if (!target.files || target.files.length === 0) return;
-
-  const file = target.files[0];
-  const reader = new FileReader();
-
-  reader.onload = (e) => {
-    if (e.target?.result) {
-      try {
-        loadLabelsFromJSON(e.target.result as string);
-      } catch (error) {
-        errorText.value = "Invalid JSON file";
-        console.error("Error parsing JSON file:", error);
-      }
-    }
-  };
-
-  reader.readAsText(file);
-
-  // Reset the input to allow loading the same file again
-  target.value = "";
-};
-
-const loadLabelsFromJSON = (jsonData: string) => {
-  const success = imageStore.loadJSON(jsonData);
-  if (!success) {
-    // TODO: replace with some toast
-    errorText.value = "Failed to load JSON data";
-  } else {
-    errorText.value = "";
-  }
 };
 </script>
 

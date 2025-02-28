@@ -9,6 +9,7 @@
       <img :src="imageUrl" ref="imageRef" class="max-w-full h-auto" />
       <!-- Render each bounding box -->
       <div
+        v-if="showBoxes"
         v-for="box in findingsStore.findingsBoxes"
         :key="box.id"
         class="absolute border-2"
@@ -26,6 +27,7 @@
       >
         <!-- Box label -->
         <span
+          v-if="showLabels"
           class="absolute -top-6 left-0 px-2 py-1 text-sm text-white rounded"
           :style="{ backgroundColor: box.color }"
         >
@@ -49,7 +51,7 @@
         <div
           v-for="handle in ['n', 's', 'e', 'w'] as ResizeHandle[]"
           :key="handle"
-          class="absolute bg-white border-2"
+          class="absolute bg-white border-1"
           :style="{
             borderColor: box.color,
             ...getEdgePosition(handle),
@@ -57,6 +59,29 @@
           }"
           @mousedown.stop="(e) => startResize(e, box.id, handle)"
         ></div>
+      </div>
+    </div>
+
+    <!-- Toggle switches moved below the image -->
+    <div class="flex items-center space-x-6 mt-3">
+      <div class="flex items-center">
+        <span class="mr-2 text-sm">Boxes:</span>
+        <label class="relative inline-flex items-center cursor-pointer">
+          <input type="checkbox" v-model="showBoxes" class="sr-only peer" />
+          <div
+            class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"
+          ></div>
+        </label>
+      </div>
+
+      <div class="flex items-center">
+        <span class="mr-2 text-sm">Labels:</span>
+        <label class="relative inline-flex items-center cursor-pointer">
+          <input type="checkbox" v-model="showLabels" class="sr-only peer" />
+          <div
+            class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"
+          ></div>
+        </label>
       </div>
     </div>
   </div>
@@ -94,6 +119,8 @@ defineProps({
 
 const imageRef = ref<HTMLImageElement | null>(null);
 const containerRef = ref<HTMLDivElement | null>(null);
+const showBoxes = ref(true); // Toggle for showing/hiding bounding boxes
+const showLabels = ref(true); // Toggle for showing/hiding labels
 
 const findingsStore = useFindingsStore();
 
