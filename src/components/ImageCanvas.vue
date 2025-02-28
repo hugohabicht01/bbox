@@ -38,7 +38,7 @@
         <div
           v-for="handle in ['nw', 'ne', 'se', 'sw'] as ResizeHandle[]"
           :key="handle"
-          class="absolute w-3 h-3 bg-white border-2 rounded-sm"
+          class="absolute w-2 h-2 bg-white border border-solid rounded-sm"
           :style="{
             borderColor: box.color,
             ...getHandlePosition(handle),
@@ -51,7 +51,7 @@
         <div
           v-for="handle in ['n', 's', 'e', 'w'] as ResizeHandle[]"
           :key="handle"
-          class="absolute bg-white border-1"
+          class="absolute bg-white border border-solid"
           :style="{
             borderColor: box.color,
             ...getEdgePosition(handle),
@@ -136,37 +136,37 @@ const resizeState = reactive<ResizeState>({
 
 const positions = {
   n: {
-    top: "-5px",
+    top: "-3px",
     left: "50%",
     transform: "translateX(-50%)",
-    width: "20px",
-    height: "10px",
+    width: "16px",
+    height: "6px",
   },
   s: {
-    bottom: "-5px",
+    bottom: "-3px",
     left: "50%",
     transform: "translateX(-50%)",
-    width: "20px",
-    height: "10px",
+    width: "16px",
+    height: "6px",
   },
   e: {
-    right: "-5px",
+    right: "-3px",
     top: "50%",
     transform: "translateY(-50%)",
-    width: "10px",
-    height: "20px",
+    width: "6px",
+    height: "16px",
   },
   w: {
-    left: "-5px",
+    left: "-3px",
     top: "50%",
     transform: "translateY(-50%)",
-    width: "10px",
-    height: "20px",
+    width: "6px",
+    height: "16px",
   },
-  nw: { top: "-5px", left: "-5px" },
-  ne: { top: "-5px", right: "-5px" },
-  se: { bottom: "-5px", right: "-5px" },
-  sw: { bottom: "-5px", left: "-5px" },
+  nw: { top: "-3px", left: "-3px" },
+  ne: { top: "-3px", right: "-3px" },
+  se: { bottom: "-3px", right: "-3px" },
+  sw: { bottom: "-3px", left: "-3px" },
 } as const;
 
 const getHandlePosition = (handle: keyof typeof positions) => {
