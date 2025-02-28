@@ -5,14 +5,19 @@
         v-model="rawText"
         class="rounded-lg border border-gray-200 shadow-lg w-2/3 h-40vh p-4"
       />
-      <div class="findings-list w-1/3 overflow-y-auto h-40vh pr-2 custom-scrollbar">
+      <div
+        class="findings-list w-1/3 overflow-y-auto h-40vh pr-2 custom-scrollbar"
+      >
         <h2 class="text-lg font-semibold mb-3 text-gray-700">Findings</h2>
-        <div v-if="findingsStore.findings.length === 0" class="text-gray-500 italic text-sm">
+        <div
+          v-if="findingsStore.findings.length === 0"
+          class="text-gray-500 italic text-sm"
+        >
           No findings to display
         </div>
-        <FindingDisplay 
-          v-for="finding in findingsStore.findings" 
-          :key="finding.id" 
+        <FindingDisplay
+          v-for="finding in findingsStore.findings"
+          :key="finding.id"
           :finding="finding"
           @update:finding="updateFinding"
           @delete="handleDeleteFinding"
@@ -44,6 +49,15 @@
         Copy
         <div class="i-carbon-copy inline-block vertical-sub"></div>
       </button>
+      <label class="btn cursor-pointer relative overflow-hidden">
+        Load from JSON
+        <input
+          type="file"
+          accept=".json"
+          @change="handleFileUpload"
+          class="absolute inset-0 opacity-0 cursor-pointer"
+        />
+      </label>
     </div>
   </div>
 </template>
@@ -168,6 +182,40 @@ const exportToClipboard = () => {
   setTimeout(() => {
     copied.value = false;
   }, 500);
+};
+
+const handleFileUpload = (event: Event) => {
+  const target = event.target as HTMLInputElement;
+  if (!target.files || target.files.length === 0) return;
+
+  const file = target.files[0];
+  const reader = new FileReader();
+
+  reader.onload = (e) => {
+    if (e.target?.result) {
+      try {
+        loadLabelsFromJSON(e.target.result as string);
+      } catch (error) {
+        errorText.value = "Invalid JSON file";
+        console.error("Error parsing JSON file:", error);
+      }
+    }
+  };
+
+  reader.readAsText(file);
+
+  // Reset the input to allow loading the same file again
+  target.value = "";
+};
+
+const loadLabelsFromJSON = (jsonData: string) => {
+  const success = imageStore.loadJSON(jsonData);
+  if (!success) {
+    // TODO: replace with some toast
+    errorText.value = "Failed to load JSON data";
+  } else {
+    errorText.value = "";
+  }
 };
 </script>
 

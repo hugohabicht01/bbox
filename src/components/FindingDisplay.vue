@@ -33,14 +33,16 @@
       </div>
     </div>
 
-    <input
+    <textarea
+      rows="2"
       v-model="editedFinding.description"
       placeholder="Description"
       class="text-sm text-gray-700 my-1 w-full border-b border-transparent focus:border-gray-300 focus:outline-none"
       @change="updateFinding"
     />
 
-    <input
+    <textarea
+      rows="2"
       v-model="editedFinding.explanation"
       placeholder="Explanation"
       class="text-sm text-gray-700 my-1 w-full border-b border-transparent focus:border-gray-300 focus:outline-none"

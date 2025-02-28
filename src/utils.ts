@@ -39,9 +39,83 @@ export const getRandomColor = (): string => {
   return color;
 };
 
+export type InternalRepr = {
+  think: string;
+  output: Array<Finding>;
+};
+
+export const findingToBasicFinding = (finding: Finding) => ({
+  label: finding.label,
+  description: finding.description,
+  explanation: finding.explanation,
+  bounding_box: finding.bounding_box,
+  severity: finding.severity,
+});
+
+export const internalToExport = (internal: InternalRepr): string => {
+  const { think, output } = internal;
+  // TODO
+};
+
+export const basicTextValidator = z
+  .string()
+  .refine(
+    (str) => {
+      /* just ensure that we have think section and output section, checks could be a lot more tight
+  General input format:
+  (the output section is a json list of type script types Finding or BasicFinding (usually BasicFinding))
+  <think>
+    Some text here, content is not parsable beyond string form
+  </think>
+
+  <output>
+  (BasicFinding|Finding)[]
+  </output>
+  */
+      const thinkStarterMarkerCount = (str.match(/<think>/g) || []).length;
+      if (thinkStarterMarkerCount !== 1) return false;
+      const thinkEndMarkerCount = (str.match(/<\/think>/g) || []).length;
+      if (thinkEndMarkerCount !== 1) return false;
+
+      const outputStarterMarkerCount = (str.match(/<output>/g) || []).length;
+      if (outputStarterMarkerCount !== 1) return false;
+      const outputEndMarkerCount = (str.match(/<\/output>/g) || []).length;
+      if (outputEndMarkerCount !== 1) return false;
+
+      const thinkSection = getSection(str, "think");
+      const outputSection = getSection(str, "output");
+      if (!thinkSection || !outputSection) return false;
+
+      return true;
+    },
+    { message: "Does not have think and output sections" },
+  )
+  .refine(
+    (str) => {
+      const findings = getStructuredBasicFindings(str);
+      if (!findings) return false;
+      return true;
+    },
+    {
+      message: "Structured output does not have the correct JSON array format",
+    },
+  );
+
+export const getStructuredBasicFindings = (str: string) => {
+  const outputSection = safeParseJSON(getSection(str, "output"));
+  if (!outputSection) return null;
+
+  // this is the usual format we expect, it will also match for Array<Finding> as that just has extra keys which get filtered
+  const res = basicFindingList.safeParse(outputSection);
+  if (!res.success) {
+    return null;
+  }
+  return res.data;
+};
+
 export const findingList = z.array(findingSchema);
 export const basicFindingList = z.array(basicFindingSchema);
-type basicFinding = z.infer<typeof basicFindingSchema>;
+export type basicFinding = z.infer<typeof basicFindingSchema>;
 
 export type Finding = z.infer<typeof findingSchema>;
 
@@ -55,10 +129,10 @@ export const getSection = (text: string, sectionMarker: string) => {
   return text.slice(sectionStart + sectionStartMarker.length, sectionEnd);
 };
 
-export const safeParseJSON = (jsonString: string): any => {
+export const safeParseJSON = (jsonString: string): unknown | null => {
   if (jsonString.trim() === "") return "";
   try {
-    return JSON.parse(jsonString);
+    return JSON.parse(jsonString) as unknown;
   } catch (error) {
     return null;
   }

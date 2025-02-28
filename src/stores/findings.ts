@@ -1,9 +1,16 @@
 import { acceptHMRUpdate, defineStore } from "pinia";
 import type { Finding, BasicFinding } from "~/utils";
-import { getSection, safeParseJSON, findingList } from "~/utils";
+import {
+  getSection,
+  safeParseJSON,
+  findingList,
+  findingToBasicFinding,
+} from "~/utils";
 import { getRandomColor } from "~/utils";
 
-function customFindingsStringify(findings: (Finding | BasicFinding)[]): string {
+export function customFindingsStringify(
+  findings: (Finding | BasicFinding)[],
+): string {
   return JSON.stringify(findings, null, 4).replace(
     /"bounding_box": \[\s*([^\]]+?)\s*\]/gs,
     (match, arrayContent) => {
@@ -31,13 +38,7 @@ export function formatForExport(rawText: string): string | null {
   const structured = getStructured(rawText);
   if (!structured) return null;
 
-  const cleaned = structured.map((finding) => ({
-    label: finding.label,
-    description: finding.description,
-    explanation: finding.explanation,
-    bounding_box: finding.bounding_box,
-    severity: finding.severity,
-  }));
+  const cleaned = structured.map(findingToBasicFinding);
 
   const formattedCleaned = formatFindings(cleaned);
 
