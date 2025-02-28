@@ -1,41 +1,7 @@
 <template>
   <div class="min-h-screen text-black pt-8">
     <div class="max-w-6xl mx-auto bg-white rounded-lg shadow-lg p-6 flex gap-6">
-      <!-- Sidebar with image thumbnails -->
-      <div class="w-48 border-r pr-4 h-[calc(100vh-8rem)] flex flex-col">
-        <h2 class="text-lg font-semibold mb-4">Images</h2>
-        <div class="space-y-3 overflow-y-auto flex-1">
-          <div
-            v-for="(img, index) in imagesStore.sortedImages"
-            :key="index"
-            class="cursor-pointer relative group"
-            @click="imagesStore.selectImage(index)"
-          >
-            <img
-              :src="img.url"
-              class="w-full h-24 object-cover rounded-lg border-2"
-              :class="
-                imagesStore.selectedImageIndex === index
-                  ? 'border-blue-500'
-                  : 'border-transparent'
-              "
-            />
-            <button
-              @click.stop="imagesStore.deleteImage(index)"
-              class="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-            >
-              <div class="i-carbon-trash-can w-4 h-4"></div>
-            </button>
-          </div>
-        </div>
-        <button
-          @click="deleteAllImages"
-          class="btn bg-red-500 hover:bg-red-600 mt-8"
-        >
-          Delete All
-        </button>
-      </div>
-
+      <ImageList />
       <!-- Main content -->
       <div class="flex-1">
         <h1 class="text-3xl font-bold mb-6 text-gray-800">
@@ -145,12 +111,6 @@ const loadLabelsFromJSON = (jsonData: string) => {
   if (!success) {
     // TODO: replace with some toast
     console.error("Failed to load JSON data");
-  }
-};
-
-const deleteAllImages = () => {
-  if (window.confirm("Do you really wanna delete ALL images and ALL labels?")) {
-    imagesStore.deleteAllImages();
   }
 };
 

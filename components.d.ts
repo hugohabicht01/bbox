@@ -12,6 +12,7 @@ declare module 'vue' {
     FindingDisplay: typeof import('./src/components/FindingDisplay.vue')['default']
     Footer: typeof import('./src/components/Footer.vue')['default']
     ImageCanvas: typeof import('./src/components/ImageCanvas.vue')['default']
+    ImageList: typeof import('./src/components/ImageList.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     TextInput: typeof import('./src/components/TextInput.vue')['default']
