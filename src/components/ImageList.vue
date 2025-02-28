@@ -18,6 +18,10 @@
               : 'border-transparent'
           "
         />
+        <!-- Number icon -->
+        <div class="absolute top-1 left-1 bg-blue-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold">
+          {{ index + 1 }}
+        </div>
         <button
           @click.stop="imagesStore.deleteImage(index)"
           class="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"

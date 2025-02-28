@@ -108,6 +108,20 @@ export const useImagesStore = defineStore("images", () => {
     return image ? image.file.name : null;
   });
 
+  const nextImage = () => {
+    if (selectedImageIndex.value === -1) return;
+    if (selectedImageIndex.value < images.value.length - 1) {
+      selectImage(selectedImageIndex.value + 1);
+    }
+  };
+
+  const previousImage = () => {
+    if (selectedImageIndex.value === -1) return;
+    if (selectedImageIndex.value > 0) {
+      selectImage(selectedImageIndex.value - 1);
+    }
+  };
+
   const selectedImage = computed(() =>
     selectedImageIndex.value >= 0
       ? images.value[selectedImageIndex.value]
@@ -237,6 +251,8 @@ export const useImagesStore = defineStore("images", () => {
     clearAllLabels,
     deleteAllImages,
     loadJSON,
+    nextImage,
+    previousImage,
   };
 });
 

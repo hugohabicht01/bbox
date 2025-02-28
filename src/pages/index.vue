@@ -63,11 +63,34 @@
 </template>
 
 <script setup lang="ts">
+import { onKeyStroke } from "@vueuse/core";
 import { useImagesStore } from "~/stores/images";
 import ImageCanvas from "~/components/ImageCanvas.vue";
 import TextInput from "~/components/TextInput.vue";
 
 const imagesStore = useImagesStore();
+
+onKeyStroke("ArrowRight", (e) => {
+  if (
+    document.activeElement instanceof HTMLInputElement ||
+    document.activeElement instanceof HTMLTextAreaElement
+  ) {
+    return;
+  }
+  e.preventDefault();
+  imagesStore.nextImage();
+});
+
+onKeyStroke("ArrowLeft", (e) => {
+  if (
+    document.activeElement instanceof HTMLInputElement ||
+    document.activeElement instanceof HTMLTextAreaElement
+  ) {
+    return;
+  }
+  e.preventDefault();
+  imagesStore.previousImage();
+});
 
 const exportAllFindings = () => {
   const exportData = imagesStore.exportAllFindings();
