@@ -47,6 +47,7 @@
           class="border-2 border-dashed border-gray-300 rounded-lg p-8 mb-6"
           @dragover.prevent
           @drop.prevent="handleDrop"
+          v-if="imagesStore.images.length === 0"
         >
           <input
             type="file"

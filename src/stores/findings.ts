@@ -1,46 +1,33 @@
+import { nanoid } from "nanoid";
 import { acceptHMRUpdate, defineStore } from "pinia";
 import type { Finding, BasicFinding, InternalRepr } from "~/utils";
 import {
-  findingList,
   findingToBasicFinding,
+  customFindingsStringify,
+  getRandomColor,
 } from "~/utils";
-import { getRandomColor } from "~/utils";
-
-export function customFindingsStringify(
-  findings: (Finding | BasicFinding)[],
-): string {
-  return JSON.stringify(findings, null, 4).replace(
-    /"bounding_box": \[\s*([^\]]+?)\s*\]/gs,
-    (match, arrayContent) => {
-      return `"bounding_box": [${arrayContent.replace(/,\s*/g, ", ")}]`;
-    },
-  );
-}
 
 export function formatFindings(findings: (Finding | BasicFinding)[]): string {
-  return customFindingsStringify(findings);
+  return `<output>\n${customFindingsStringify(findings)}\n</output>`;
 }
 
 export function formatForExport(internalRepr: InternalRepr): string | null {
   if (!internalRepr.output) return null;
 
   const cleaned = internalRepr.output.map(findingToBasicFinding);
-  
-  return JSON.stringify({
-    think: internalRepr.think,
-    output: cleaned
-  }, null, 2);
+  const formattedOutput = customFindingsStringify(cleaned);
+
+  return `<think>\n${internalRepr.think}\n</think>\n<output>\n${formattedOutput}\n</output>`;
 }
 
 export const useFindingsStore = defineStore("findings", () => {
   const findings = ref<Finding[]>([]);
   const thinkText = ref<string>("");
-  const highestId = ref(1);
 
   // The internal representation is the single source of truth
   const internalRepr = computed<InternalRepr>(() => ({
     think: thinkText.value,
-    output: findings.value
+    output: findings.value,
   }));
 
   function setThinkText(text: string) {
@@ -56,7 +43,7 @@ export const useFindingsStore = defineStore("findings", () => {
   const formattedForExport = () => formatForExport(internalRepr.value);
 
   function addFinding(finding: BasicFinding) {
-    const id = highestId.value++;
+    const id = nanoid();
     const color = getRandomColor();
 
     findings.value.push({ ...finding, id, color });
@@ -64,7 +51,7 @@ export const useFindingsStore = defineStore("findings", () => {
   }
 
   function addBox(bbox: [number, number, number, number]) {
-    const id = highestId.value++;
+    const id = nanoid();
     const color = getRandomColor();
 
     findings.value.push({
@@ -82,7 +69,7 @@ export const useFindingsStore = defineStore("findings", () => {
   function addFindings(basicFindings: BasicFinding[]) {
     const ids = [];
     for (const finding of basicFindings) {
-      const id = highestId.value++;
+      const id = nanoid();
       const color = getRandomColor();
       findings.value.push({ ...finding, id, color });
       ids.push(id);
@@ -109,7 +96,7 @@ export const useFindingsStore = defineStore("findings", () => {
     });
   });
 
-  function getBox(id: number | null) {
+  function getBox(id: string | null) {
     if (!id) return null;
 
     const finding = findings.value.find((f) => f.id === id);
@@ -128,7 +115,7 @@ export const useFindingsStore = defineStore("findings", () => {
   }
 
   function updateBox(
-    id: number | null,
+    id: string | null,
     newBox: [number, number, number, number],
   ) {
     if (!id) return;
@@ -149,7 +136,7 @@ export const useFindingsStore = defineStore("findings", () => {
     }
   }
 
-  function removeFinding(id: number) {
+  function removeFinding(id: string) {
     findings.value = findings.value.filter((f) => f.id !== id);
   }
 
@@ -160,7 +147,6 @@ export const useFindingsStore = defineStore("findings", () => {
   function $reset() {
     findings.value = [];
     thinkText.value = "";
-    highestId.value = 1;
   }
 
   return {

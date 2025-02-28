@@ -1,5 +1,16 @@
 import { z } from "zod";
 
+export function customFindingsStringify(
+  findings: (Finding | BasicFinding)[],
+): string {
+  return JSON.stringify(findings, null, 4).replace(
+    /"bounding_box": \[\s*([^\]]+?)\s*\]/gs,
+    (match, arrayContent) => {
+      return `"bounding_box": [${arrayContent.replace(/,\s*/g, ", ")}]`;
+    },
+  );
+}
+
 export const bboxSchema = z
   .tuple([z.number(), z.number(), z.number(), z.number()])
   .refine((coords) => coords.every((n) => n >= 0), {
@@ -22,7 +33,7 @@ export type BasicFinding = z.infer<typeof basicFindingSchema>;
 
 export const findingSchema = z.object({
   color: z.string(),
-  id: z.number(),
+  id: z.string().nanoid(),
   label: z.string(),
   description: z.string(),
   explanation: z.string(),
@@ -54,11 +65,9 @@ export const findingToBasicFinding = (finding: Finding) => ({
 
 export const internalToExport = (internal: InternalRepr): string => {
   const { think, output } = internal;
-  
-  return JSON.stringify({
-    think,
-    output: output.map(findingToBasicFinding)
-  }, null, 2);
+  const cleanedOutput = output.map(findingToBasicFinding);
+
+  return `<think>\n${think}\n</think>\n<output>\n${customFindingsStringify(cleanedOutput)}\n</output>`;
 };
 
 export const basicTextValidator = z

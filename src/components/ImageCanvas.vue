@@ -92,7 +92,7 @@ import { ref, reactive, onMounted, onUnmounted } from "vue";
 import { useFindingsStore } from "~/stores/findings";
 
 interface BoundingBox {
-  id: number;
+  id: string;
   x_min: number;
   y_min: number;
   x_max: number;
@@ -105,7 +105,7 @@ type ResizeHandle = "n" | "s" | "e" | "w" | "nw" | "ne" | "se" | "sw";
 
 interface ResizeState {
   active: boolean;
-  boxId: number | null;
+  boxId: string | null;
   handle: ResizeHandle | null;
   startX: number;
   startY: number;
@@ -113,7 +113,7 @@ interface ResizeState {
 }
 
 // Props: imageUrl (one‑way)
-defineProps({
+const props = defineProps({
   imageUrl: String,
 });
 
@@ -191,7 +191,7 @@ const getHandleCursor = (handle: ResizeHandle): string => {
   return cursors[handle];
 };
 
-const startResize = (e: MouseEvent, boxId: number, handle: ResizeHandle) => {
+const startResize = (e: MouseEvent, boxId: string, handle: ResizeHandle) => {
   e.preventDefault();
   const box = findingsStore.getBox(boxId);
   if (!box) return;
@@ -262,7 +262,25 @@ const stopResize = () => {
 const isDrawing = ref(false);
 const drawStartX = ref(0);
 const drawStartY = ref(0);
-const drawingBoxId = ref<number | null>(null);
+const drawingBoxId = ref<string | null>(null);
+
+watch(
+  () => props.imageUrl,
+  () => {
+    // reset entire state for new image
+    isDrawing.value = false;
+    drawStartX.value = 0;
+    drawStartY.value = 0;
+    drawingBoxId.value = null;
+
+    resizeState.active = false;
+    resizeState.boxId = null;
+    resizeState.handle = null;
+    resizeState.originalBox = null;
+
+    hoveredBoxId.value = null;
+  },
+);
 
 const startDrawing = (e: MouseEvent) => {
   // Only start drawing if the target is the image
@@ -307,8 +325,8 @@ const stopDrawing = () => {
 
 // --- DELETION LOGIC ---
 // Track which box is currently hovered.
-const hoveredBoxId = ref<number | null>(null);
-const setHoveredBox = (id: number) => {
+const hoveredBoxId = ref<string | null>(null);
+const setHoveredBox = (id: string) => {
   hoveredBoxId.value = id;
 };
 const clearHoveredBox = () => {

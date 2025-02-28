@@ -46,10 +46,7 @@
       <button @click="clearAllLabels" class="btn bg-red-500 hover:bg-red-600">
         Reset all
       </button>
-      <button
-        @click="exportToClipboard"
-        class="btn active:bg-gray-200"
-      >
+      <button @click="exportToClipboard" class="btn active:bg-gray-200">
         Copy
         <div class="i-carbon-copy inline-block vertical-sub"></div>
       </button>
@@ -58,10 +55,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed } from "vue";
-import {
-  type Finding,
-} from "~/utils";
+import { ref, watch } from "vue";
+import { type Finding } from "~/utils";
 
 import { useFindingsStore } from "~/stores/findings";
 import { useImagesStore } from "~/stores/images";

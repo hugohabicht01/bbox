@@ -6,57 +6,52 @@ import {
   Finding,
   InternalRepr,
   getRandomColor,
+  getSection,
+  internalToExport,
 } from "~/utils";
 import { z } from "zod";
 
 const migrateToInternalRepr = (json: string) => {
   try {
     const data = JSON.parse(json);
-    
+
     const migrated = Object.keys(data).map((key) => {
-      // Expecting data directly in InternalRepr format or compatible format
       const fileData = data[key];
-      let internalRepr: InternalRepr;
-      
-      if (fileData.think !== undefined && Array.isArray(fileData.output)) {
-        // Already in InternalRepr format
-        const basicFindings = fileData.output;
-        const output = basicToNormalized(basicFindings);
-        internalRepr = { 
-          think: fileData.think,
-          output 
-        };
-      } else if (typeof fileData === 'string') {
-        // Legacy format - try to parse from string with tags
-        try {
-          // Check if it's using the old <think></think> and <o></o> format
-          const thinkMatch = fileData.match(/<think>([\s\S]*?)<\/think>/);
-          const outputMatch = fileData.match(/<o>([\s\S]*?)<\/o>/);
-          
-          if (thinkMatch && outputMatch) {
-            const thinkContent = thinkMatch[1].trim();
-            const outputContent = outputMatch[1].trim();
-            
-            // Parse output JSON
-            const basicFindings = JSON.parse(outputContent);
-            const output = basicToNormalized(basicFindings);
-            
-            internalRepr = { 
-              think: thinkContent,
-              output 
-            };
-          } else {
-            throw new Error(`Invalid format for ${key}`);
-          }
-        } catch (parseError) {
-          console.error(`Error parsing legacy format for ${key}:`, parseError);
-          throw parseError;
-        }
-      } else {
-        throw new Error(`Unknown data format for ${key}`);
+
+      // All files should use the string format with tags
+      if (typeof fileData !== "string") {
+        throw new Error(
+          `Invalid format for ${key}: expected string with <think> and <output> tags`,
+        );
       }
 
-      return { labels: internalRepr, file_name: key };
+      // Parse the <think> and <o> sections
+      const thinkContent = getSection(fileData, "think").trim();
+      const outputContent = getSection(fileData, "output").trim();
+
+      if (!thinkContent || !outputContent) {
+        throw new Error(`Missing <think> or <output> tags in data for ${key}`);
+      }
+
+      // Parse output JSON
+      try {
+        const basicFindings = JSON.parse(outputContent);
+        const output = basicToNormalized(basicFindings);
+
+        return {
+          labels: {
+            think: thinkContent,
+            output,
+          },
+          file_name: key,
+        };
+      } catch (parseError) {
+        console.error(
+          `Error parsing JSON in output section for ${key}:`,
+          parseError,
+        );
+        throw parseError;
+      }
     }) satisfies { file_name: string; labels: InternalRepr }[];
 
     return migrated;
@@ -144,8 +139,11 @@ export const useImagesStore = defineStore("images", () => {
   const saveCurrentToAllLabels = () => {
     const key = currentFileName.value;
     if (key) {
-      // Save the current internal representation directly
-      allLabels.value[key] = findingStore.internalRepr;
+      // Format internal representation as a string with tags
+      const formatted = findingStore.formattedForExport();
+      if (formatted) {
+        allLabels.value[key] = findingStore.internalRepr;
+      }
     }
   };
 
@@ -178,7 +176,7 @@ export const useImagesStore = defineStore("images", () => {
     // Reset store and select new image
     findingStore.$reset();
     selectedImageIndex.value = index;
-    
+
     // Load data for the new image
     const imageLabels = allLabels.value[currentFileName.value ?? ""];
     if (imageLabels) {
@@ -205,7 +203,15 @@ export const useImagesStore = defineStore("images", () => {
 
   const exportAllFindings = () => {
     saveCurrentToAllLabels();
-    return JSON.stringify(allLabels.value);
+
+    // Convert internal representations back to tag format for export
+    const exportData: Record<string, string> = {};
+
+    for (const [key, value] of Object.entries(allLabels.value)) {
+      exportData[key] = internalToExport(value);
+    }
+
+    return JSON.stringify(exportData);
   };
 
   const clearAllLabels = () => {
