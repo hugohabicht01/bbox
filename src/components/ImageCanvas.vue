@@ -58,6 +58,7 @@
             cursor: getHandleCursor(handle),
           }"
           @mousedown.stop="(e) => startResize(e, box.id, handle)"
+          v-if="!(box.x_max - box.x_min < 50 || box.y_max - box.y_min < 50)"
         ></div>
       </div>
     </div>
@@ -230,6 +231,8 @@ const handleResize = (e: MouseEvent) => {
 
   const handle = resizeState.handle;
   const original = resizeState.originalBox;
+  const imgWidth = imageRef.value.width;
+  const imgHeight = imageRef.value.height;
 
   let x_min = original.x_min;
   let y_min = original.y_min;
@@ -252,6 +255,12 @@ const handleResize = (e: MouseEvent) => {
     y_min = y_max;
     y_max = temp;
   }
+  
+  // Constrain to image boundaries
+  x_min = Math.max(0, Math.min(x_min, imgWidth));
+  y_min = Math.max(0, Math.min(y_min, imgHeight));
+  x_max = Math.max(0, Math.min(x_max, imgWidth));
+  y_max = Math.max(0, Math.min(y_max, imgHeight));
 
   const updatedBox = [x_min, y_min, x_max, y_max].map(Math.round) as [
     number,
@@ -303,8 +312,16 @@ const startDrawing = (e: MouseEvent) => {
   isDrawing.value = true;
 
   const rect = containerRef.value?.getBoundingClientRect();
-  const startX = e.clientX - (rect?.left ?? 0);
-  const startY = e.clientY - (rect?.top ?? 0);
+  const imgWidth = imageRef.value?.width || 0;
+  const imgHeight = imageRef.value?.height || 0;
+  
+  let startX = e.clientX - (rect?.left ?? 0);
+  let startY = e.clientY - (rect?.top ?? 0);
+  
+  // Constrain to image boundaries
+  startX = Math.max(0, Math.min(startX, imgWidth));
+  startY = Math.max(0, Math.min(startY, imgHeight));
+  
   drawStartX.value = startX;
   drawStartY.value = startY;
 
@@ -317,10 +334,19 @@ const startDrawing = (e: MouseEvent) => {
 
 const handleDrawing = (e: MouseEvent) => {
   if (!isDrawing.value) return;
-  if (!containerRef.value) return;
+  if (!containerRef.value || !imageRef.value) return;
+  
   const rect = containerRef.value.getBoundingClientRect();
-  const currentX = e.clientX - rect.left;
-  const currentY = e.clientY - rect.top;
+  const imgWidth = imageRef.value.width;
+  const imgHeight = imageRef.value.height;
+  
+  // Calculate current position
+  let currentX = e.clientX - rect.left;
+  let currentY = e.clientY - rect.top;
+  
+  // Constrain to image boundaries
+  currentX = Math.max(0, Math.min(currentX, imgWidth));
+  currentY = Math.max(0, Math.min(currentY, imgHeight));
 
   const x_min = Math.round(Math.min(drawStartX.value, currentX));
   const x_max = Math.round(Math.max(drawStartX.value, currentX));
