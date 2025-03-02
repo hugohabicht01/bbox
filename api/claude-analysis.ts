@@ -7,15 +7,12 @@ export const edge = false;
 
 const PROMPT = `
   You are an expert at pixel perfect image analysis and in privacy.
-  Write down your thoughts within a <think> block.
   Please go through all objects in the image and consider whether they are private data or not.
-  End this with a </think> block.
   Some things to remember:
   - private data is only data thats linked to a human person, common examples being a persons face, name, address, license plate
   - Think step by step, take your time.
 
   Example output:
-  <think>
   Let's analyze the image step by step:
 
   1. Motorcycles: The image contains two motorcycles. These are objects and do not contain any private data.
@@ -23,7 +20,6 @@ const PROMPT = `
   3. Background: The background includes a building and some greenery. These elements do not contain any private data.
   4. Man: A man standing next to one of the motorcycles, his face is considered personal data.
   Other Details: There are no other visible faces, names, addresses, or other personal information in the image.
-  </think>
 
   Do not repeat the example; instead, derive and apply the general pattern.
 
