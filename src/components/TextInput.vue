@@ -2,11 +2,24 @@
   <div class="py-4 text-black" @keydown.ctrl.c.prevent="exportToClipboard">
     <div class="grid grid-cols-2 gap-4">
       <div class="h-40vh">
-        <h2 class="text-lg font-semibold mb-3 text-gray-700">Thinking</h2>
+        <div class="flex justify-between items-center mb-3">
+          <h2 class="text-lg font-semibold text-gray-700">Thinking</h2>
+          <button 
+            @click="analyzeWithClaude" 
+            class="btn bg-purple-500 hover:bg-purple-600 text-white text-sm px-3 py-1 rounded-lg flex items-center gap-1"
+            :disabled="isAnalyzing"
+            :class="{ 'opacity-70 cursor-not-allowed': isAnalyzing }"
+          >
+            <div v-if="isAnalyzing" class="i-carbon-circle-dash inline-block animate-spin"></div>
+            <span v-else class="i-carbon-bot inline-block"></span>
+            {{ isAnalyzing ? 'Analyzing...' : 'Analyze with Claude' }}
+          </button>
+        </div>
         <textarea
           v-model="thinkText"
-          class="rounded-lg border border-gray-200 shadow-lg h-36vh p-4 w-full"
+          class="rounded-lg border border-gray-200 shadow-lg h-34vh p-4 w-full"
           placeholder="Enter thinking notes here..."
+          :disabled="isAnalyzing"
         />
       </div>
       <div class="findings-list overflow-y-auto h-40vh pr-2 custom-scrollbar">
@@ -56,16 +69,18 @@
 
 <script setup lang="ts">
 import { ref, watch } from "vue";
-import { type Finding } from "~/utils";
+import { type Finding, ClaudeService } from "~/utils";
 
 import { useFindingsStore } from "~/stores/findings";
 import { useImagesStore } from "~/stores/images";
 import FindingDisplay from "~/components/FindingDisplay.vue";
 
 const thinkText = ref("");
+const isAnalyzing = ref(false);
 
 const findingsStore = useFindingsStore();
 const imageStore = useImagesStore();
+const claudeService = ClaudeService.getInstance();
 
 const clearAllLabels = () => {
   if (window.confirm("Do you really want to clear ALL labels?")) {
@@ -111,6 +126,35 @@ const exportToClipboard = () => {
   setTimeout(() => {
     copied.value = false;
   }, 500);
+};
+
+// Function to analyze the current image with Claude
+const analyzeWithClaude = async () => {
+  const currentImage = imageStore.selectedImage;
+  if (!currentImage) {
+    alert('Please select an image first');
+    return;
+  }
+  
+  try {
+    isAnalyzing.value = true;
+    
+    // Get image data (it's already in base64 format from the URL)
+    const imageData = currentImage.url.split(',')[1]; // Remove data:image/jpeg;base64, prefix
+    
+    // Call the Claude API through our proxy endpoint
+    const analysis = await claudeService.analyzeImage(imageData);
+    
+    // Update the thinking text with the analysis
+    thinkText.value = analysis;
+    findingsStore.setThinkText(analysis);
+    
+  } catch (error) {
+    console.error('Error analyzing image:', error);
+    alert('Failed to analyze image. Please try again later.');
+  } finally {
+    isAnalyzing.value = false;
+  }
 };
 </script>
 

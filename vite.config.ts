@@ -1,22 +1,24 @@
 /// <reference types="vitest" />
 
-import path from 'node:path'
-import Vue from '@vitejs/plugin-vue'
-import UnoCSS from 'unocss/vite'
-import AutoImport from 'unplugin-auto-import/vite'
-import Components from 'unplugin-vue-components/vite'
-import VueMacros from 'unplugin-vue-macros/vite'
-import { VueRouterAutoImports } from 'unplugin-vue-router'
-import VueRouter from 'unplugin-vue-router/vite'
-import { defineConfig } from 'vite'
+import path from "node:path";
+import Vue from "@vitejs/plugin-vue";
+import UnoCSS from "unocss/vite";
+import AutoImport from "unplugin-auto-import/vite";
+import Components from "unplugin-vue-components/vite";
+import VueMacros from "unplugin-vue-macros/vite";
+import { VueRouterAutoImports } from "unplugin-vue-router";
+import VueRouter from "unplugin-vue-router/vite";
+import vercel from "vite-plugin-vercel";
+import { defineConfig } from "vite";
 
 export default defineConfig({
   resolve: {
     alias: {
-      '~/': `${path.resolve(__dirname, 'src')}/`,
+      "~/": `${path.resolve(__dirname, "src")}/`,
     },
   },
   plugins: [
+    vercel(),
     VueMacros({
       defineOptions: false,
       defineModels: false,
@@ -36,18 +38,16 @@ export default defineConfig({
     // https://github.com/antfu/unplugin-auto-import
     AutoImport({
       imports: [
-        'vue',
-        '@vueuse/core',
+        "vue",
+        "@vueuse/core",
         VueRouterAutoImports,
         {
           // add any other imports you were relying on
-          'vue-router/auto': ['useLink'],
+          "vue-router/auto": ["useLink"],
         },
       ],
       dts: true,
-      dirs: [
-        './src/composables',
-      ],
+      dirs: ["./src/composables"],
       vueTemplate: true,
     }),
 
@@ -63,6 +63,6 @@ export default defineConfig({
 
   // https://github.com/vitest-dev/vitest
   test: {
-    environment: 'jsdom',
+    environment: "jsdom",
   },
-})
+});

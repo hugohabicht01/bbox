@@ -174,3 +174,54 @@ export const bboxEquals = (bbox1: BboxType, bbox2: BboxType) => {
     bbox1[3] === bbox2[3]
   );
 };
+
+// Claude API service with proxy approach for security
+export class ClaudeService {
+  private static instance: ClaudeService;
+  private apiEndpoint: string = '/api/claude-analysis';
+  private analyzing: boolean = false;
+  
+  private constructor() {}
+  
+  public static getInstance(): ClaudeService {
+    if (!ClaudeService.instance) {
+      ClaudeService.instance = new ClaudeService();
+    }
+    return ClaudeService.instance;
+  }
+  
+  public isAnalyzing(): boolean {
+    return this.analyzing;
+  }
+  
+  public async analyzeImage(imageBase64: string): Promise<string> {
+    try {
+      this.analyzing = true;
+      
+      // Ensure the base64 string doesn't have the data URL prefix
+      const base64Data = imageBase64.startsWith('data:')
+        ? imageBase64.split(',')[1]
+        : imageBase64;
+      
+      const response = await fetch(this.apiEndpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ image: base64Data }),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`API request failed with status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      return data.analysis;
+    } catch (error) {
+      console.error('Error analyzing image with Claude:', error);
+      return 'Error analyzing image. Please try again later.';
+    } finally {
+      this.analyzing = false;
+    }
+  }
+}

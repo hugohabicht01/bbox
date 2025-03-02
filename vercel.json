@@ -1,0 +1,6 @@
+{
+  "rewrites": [
+    { "source": "/api/claude-analysis", "destination": "/api/claudeanalysis" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
