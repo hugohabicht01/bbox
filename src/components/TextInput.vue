@@ -4,15 +4,18 @@
       <div class="h-40vh">
         <div class="flex justify-between items-center mb-3">
           <h2 class="text-lg font-semibold text-gray-700">Thinking</h2>
-          <button 
-            @click="analyzeWithClaude" 
+          <button
+            @click="analyzeWithClaude"
             class="btn bg-purple-500 hover:bg-purple-600 text-white text-sm px-3 py-1 rounded-lg flex items-center gap-1"
             :disabled="isAnalyzing"
             :class="{ 'opacity-70 cursor-not-allowed': isAnalyzing }"
           >
-            <div v-if="isAnalyzing" class="i-carbon-circle-dash inline-block animate-spin"></div>
+            <div
+              v-if="isAnalyzing"
+              class="i-carbon-circle-dash inline-block animate-spin"
+            ></div>
             <span v-else class="i-carbon-bot inline-block"></span>
-            {{ isAnalyzing ? 'Analyzing...' : 'Analyze with Claude' }}
+            {{ isAnalyzing ? "Analyzing..." : "Analyze with Claude" }}
           </button>
         </div>
         <textarea
@@ -50,7 +53,7 @@
         'transition-opacity duration-100',
       ]"
     >
-      Copied!
+      {{ clipboardActionText }}
     </p>
     <div class="flex [&>*]:m-4 [&>*]:px-4 [&>*]:py-2">
       <button @click="resetText" class="btn bg-red-500 hover:bg-red-600">
@@ -63,13 +66,23 @@
         Copy
         <div class="i-carbon-copy inline-block vertical-sub"></div>
       </button>
+      <button @click="importFromClipboard" class="btn active:bg-gray-200">
+        Paste
+        <div class="i-carbon-paste inline-block vertical-sub"></div>
+      </button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, watch } from "vue";
-import { type Finding, ClaudeService } from "~/utils";
+import {
+  type Finding,
+  ClaudeService,
+  getSection,
+  safeParseJSON,
+  basicFindingList,
+} from "~/utils";
 
 import { useFindingsStore } from "~/stores/findings";
 import { useImagesStore } from "~/stores/images";
@@ -77,6 +90,8 @@ import FindingDisplay from "~/components/FindingDisplay.vue";
 
 const thinkText = ref("");
 const isAnalyzing = ref(false);
+const copied = ref(false);
+const clipboardActionText = ref("Copied!");
 
 const findingsStore = useFindingsStore();
 const imageStore = useImagesStore();
@@ -87,8 +102,6 @@ const clearAllLabels = () => {
     imageStore.clearAllLabels();
   }
 };
-
-const copied = ref(false);
 
 // Update thinkText whenever the store's thinkText changes
 watch(
@@ -122,36 +135,111 @@ const exportToClipboard = () => {
   if (!formatted) return;
   navigator.clipboard.writeText(formatted);
 
+  clipboardActionText.value = "Copied to clipboard!";
   copied.value = true;
   setTimeout(() => {
     copied.value = false;
   }, 500);
 };
 
+const parseTextForOneFinding = (text: string) => {
+  // Get think section
+  const thinkSectionText = getSection(text, "think").trim();
+  if (!thinkSectionText) {
+    console.error("No think section found in clipboard data");
+    return;
+  }
+
+  // Get output section (look for <output> tags)
+  const outputSectionText = getSection(text, "output");
+  if (!outputSectionText) {
+    console.error("No output section found in clipboard data");
+    return;
+  }
+
+  // Parse the output section JSON
+  const parsedOutput = safeParseJSON(outputSectionText);
+  if (!parsedOutput) {
+    console.error("Failed to parse output section as JSON");
+    return;
+  }
+
+  // Validate the findings format
+  const validatedFindings = basicFindingList.safeParse(parsedOutput);
+  if (!validatedFindings.success) {
+    console.error("Invalid findings format", validatedFindings.error);
+    return;
+  }
+  return {
+    think: thinkSectionText,
+    output: validatedFindings.data,
+  };
+};
+
+const importFromClipboard = async () => {
+  try {
+    const clipboardText = await navigator.clipboard.readText();
+    const parsed = parseTextForOneFinding(clipboardText);
+    if (!parsed) {
+      console.error("Failed to parse text");
+      return;
+    }
+
+    // Update the store with the parsed data
+    findingsStore.setThinkText(parsed.think);
+    findingsStore.clearFindings();
+    findingsStore.addFindings(parsed.output);
+
+    // Show success message
+    clipboardActionText.value = "Data pasted successfully!";
+    copied.value = true;
+    setTimeout(() => {
+      copied.value = false;
+    }, 500);
+  } catch (error) {
+    console.error("Error importing from clipboard:", error);
+    alert("Failed to import data from clipboard. Please check the format.");
+  }
+};
+
 // Function to analyze the current image with Claude
 const analyzeWithClaude = async () => {
   const currentImage = imageStore.selectedImage;
   if (!currentImage) {
-    alert('Please select an image first');
+    alert("Please select an image first");
     return;
   }
-  
+
   try {
     isAnalyzing.value = true;
-    
+
     // Get image data (it's already in base64 format from the URL)
-    const imageData = currentImage.url.split(',')[1]; // Remove data:image/jpeg;base64, prefix
-    
+    const imageData = currentImage.url.split(",")[1]; // Remove data:image/jpeg;base64, prefix
+
     // Call the Claude API through our proxy endpoint
-    const analysis = await claudeService.analyzeImage(imageData);
-    
-    // Update the thinking text with the analysis
-    thinkText.value = analysis;
-    findingsStore.setThinkText(analysis);
-    
+    const analysisResponse = await claudeService.analyzeImage(imageData);
+    const parsed = parseTextForOneFinding(analysisResponse);
+    if (!parsed) {
+      findingsStore.setThinkText(
+        "Claude hallucinated bad output, sorry: " + analysisResponse,
+      );
+      return;
+    } else {
+      // Update the store with the parsed data
+      findingsStore.setThinkText(parsed.think);
+      findingsStore.clearFindings();
+      findingsStore.addFindings(parsed.output);
+
+      // Show success message
+      clipboardActionText.value = "Analysis completed!";
+      copied.value = true;
+      setTimeout(() => {
+        copied.value = false;
+      }, 500);
+    }
   } catch (error) {
-    console.error('Error analyzing image:', error);
-    alert('Failed to analyze image. Please try again later.');
+    console.error("Error analyzing image:", error);
+    alert("Failed to analyze image. Please try again later.");
   } finally {
     isAnalyzing.value = false;
   }
