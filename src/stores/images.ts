@@ -209,7 +209,14 @@ export const useImagesStore = defineStore("images", () => {
     }
   };
 
+  const backup = () => {
+    const key = Date.now().toString();
+    const exportData = exportAllFindings();
+    localStorage.setItem(key, exportData);
+  };
+
   const deleteAllImages = () => {
+    backup();
     images.value = [];
     selectedImageIndex.value = -1;
     clearAllLabels();
@@ -229,6 +236,7 @@ export const useImagesStore = defineStore("images", () => {
   };
 
   const clearAllLabels = () => {
+    backup();
     allLabels.value = {};
     findingStore.$reset();
   };
