@@ -6,7 +6,7 @@
           <h2 class="text-lg font-semibold text-gray-700">Thinking</h2>
           <button
             @click="analyzeWithClaude"
-            class="btn bg-purple-500 hover:bg-purple-600 text-white text-sm px-3 py-1 rounded-lg flex items-center gap-1"
+            class="btn bg-purple-500 hover:bg-purple-600 text-white text-sm px-3 py-1 rounded-lg flex items-center gap-1 m-1"
             :disabled="isAnalyzing"
             :class="{ 'opacity-70 cursor-not-allowed': isAnalyzing }"
           >
@@ -19,7 +19,7 @@
           </button>
           <button
             @click="correctWithClaude"
-            class="btn bg-sky-500 hover:bg-sky-600 text-white text-sm px-3 py-1 rounded-lg flex items-center gap-1"
+            class="btn bg-sky-500 hover:bg-sky-600 text-white text-sm px-3 py-1 rounded-lg flex items-center gap-1 m-1"
             :disabled="isCorrecting"
             :class="{ 'opacity-70 cursor-not-allowed': isCorrecting }"
           >
