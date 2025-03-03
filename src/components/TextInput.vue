@@ -215,9 +215,14 @@ const analyzeWithClaude = async () => {
 
     // Get image data (it's already in base64 format from the URL)
     const imageData = currentImage.url.split(",")[1]; // Remove data:image/jpeg;base64, prefix
+    // get the current mimetype from the data url
+    const mimeType = currentImage.url.split(";")[0].split(":")[1];
 
     // Call the Claude API through our proxy endpoint
-    const analysisResponse = await claudeService.analyzeImage(imageData);
+    const analysisResponse = await claudeService.analyzeImage(
+      imageData,
+      mimeType,
+    );
     const parsed = parseTextForOneFinding(analysisResponse);
     if (!parsed) {
       findingsStore.setThinkText(

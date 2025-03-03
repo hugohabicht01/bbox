@@ -72,7 +72,7 @@ export default async function handler(
   }
 
   try {
-    const { image } = request.body;
+    const { image, mimetype } = request.body;
 
     if (!image) {
       return response.status(400).json({ error: "Image is required" });
@@ -111,7 +111,7 @@ export default async function handler(
                   type: "image",
                   source: {
                     type: "base64",
-                    media_type: "image/jpeg",
+                    media_type: mimetype,
                     data: image,
                   },
                 },
