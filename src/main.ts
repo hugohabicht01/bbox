@@ -18,3 +18,8 @@ const router = createRouter({
 app.use(router);
 app.use(pinia);
 app.mount("#app");
+
+// confirmation dialog before leaving the page
+window.addEventListener("beforeunload", (event) => {
+  event.preventDefault(); // Required for modern browsers
+});
