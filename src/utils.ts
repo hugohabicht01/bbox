@@ -179,7 +179,9 @@ export const bboxEquals = (bbox1: BboxType, bbox2: BboxType) => {
 export class ClaudeService {
   private static instance: ClaudeService;
   private apiEndpoint: string = "/api/claude-analysis";
+  private correctionEndpoint: string = "/api/claude-correct";
   private analyzing: boolean = false;
+  private correcting: boolean = false;
 
   private constructor() {}
 
@@ -192,6 +194,10 @@ export class ClaudeService {
 
   public isAnalyzing(): boolean {
     return this.analyzing;
+  }
+
+  public isCorrecting(): boolean {
+    return this.correcting;
   }
 
   public async analyzeImage(
@@ -225,6 +231,45 @@ export class ClaudeService {
       return "Error analyzing image. Please try again later.";
     } finally {
       this.analyzing = false;
+    }
+  }
+
+  public async correctAnalysis(
+    imageBase64: string,
+    imageMimetype: string,
+    analysis: string,
+  ): Promise<string> {
+    try {
+      this.correcting = true;
+
+      // Ensure the base64 string doesn't have the data URL prefix
+      const base64Data = imageBase64.startsWith("data:")
+        ? imageBase64.split(",")[1]
+        : imageBase64;
+
+      const response = await fetch(this.correctionEndpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          image: base64Data,
+          mimetype: imageMimetype,
+          analysis,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`API request failed with status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data.analysis;
+    } catch (error) {
+      console.error("Error analyzing image with Claude:", error);
+      return "Error analyzing image. Please try again later.";
+    } finally {
+      this.correcting = false;
     }
   }
 }

@@ -17,6 +17,19 @@
             <span v-else class="i-carbon-bot inline-block"></span>
             {{ isAnalyzing ? "Analyzing..." : "Analyze with Claude" }}
           </button>
+          <button
+            @click="correctWithClaude"
+            class="btn bg-sky-500 hover:bg-sky-600 text-white text-sm px-3 py-1 rounded-lg flex items-center gap-1"
+            :disabled="isCorrecting"
+            :class="{ 'opacity-70 cursor-not-allowed': isCorrecting }"
+          >
+            <div
+              v-if="isCorrecting"
+              class="i-carbon-circle-dash inline-block animate-spin"
+            ></div>
+            <span v-else class="i-carbon-bot inline-block"></span>
+            {{ isCorrecting ? "Correcting..." : "Correct with Claude" }}
+          </button>
         </div>
         <textarea
           v-model="thinkText"
@@ -90,6 +103,7 @@ import FindingDisplay from "~/components/FindingDisplay.vue";
 
 const thinkText = ref("");
 const isAnalyzing = ref(false);
+const isCorrecting = ref(false);
 const copied = ref(false);
 const clipboardActionText = ref("Copied!");
 
@@ -247,6 +261,57 @@ const analyzeWithClaude = async () => {
     alert("Failed to analyze image. Please try again later.");
   } finally {
     isAnalyzing.value = false;
+  }
+};
+
+const correctWithClaude = async () => {
+  const currentImage = imageStore.selectedImage;
+  if (!currentImage) {
+    alert("Please select an image first");
+    return;
+  }
+
+  try {
+    isCorrecting.value = true;
+
+    // Get image data (it's already in base64 format from the URL)
+    const imageData = currentImage.url.split(",")[1]; // Remove data:image/jpeg;base64, prefix
+    // get the current mimetype from the data url
+    const mimeType = currentImage.url.split(";")[0].split(":")[1];
+
+    const analysis = findingsStore.formattedForExport();
+    if (!analysis) {
+      alert("Nothing to correct yet");
+      return;
+    }
+    // Call the Claude API through our proxy endpoint
+    const analysisResponse = await claudeService.correctAnalysis(
+      imageData,
+      mimeType,
+      analysis,
+    );
+    const parsed = parseTextForOneFinding(analysisResponse);
+    if (!parsed) {
+      alert("Something went wrong while correcting");
+      return;
+    } else {
+      // Update the store with the parsed data
+      findingsStore.setThinkText(parsed.think);
+      findingsStore.clearFindings();
+      findingsStore.addFindings(parsed.output);
+
+      // Show success message
+      clipboardActionText.value = "Correction completed!";
+      copied.value = true;
+      setTimeout(() => {
+        copied.value = false;
+      }, 500);
+    }
+  } catch (error) {
+    console.error("Error analyzing image:", error);
+    alert("Failed to analyze image. Please try again later.");
+  } finally {
+    isCorrecting.value = false;
   }
 };
 </script>

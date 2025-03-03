@@ -11,6 +11,7 @@
     "up": "taze major -I"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
     "@vercel/node": "^5.1.10",
     "@vueuse/core": "^12.7.0",
     "nanoid": "^5.1.2",
