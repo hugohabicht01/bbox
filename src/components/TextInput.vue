@@ -191,27 +191,6 @@ const parseTextForOneImage = (text: string) => {
   };
 };
 
-const normaliseBoundingBoxes = (data: basicFinding[]) => {
-  const image = document.getElementById("main-image") as HTMLImageElement;
-  if (!image) {
-    console.error("Image element not found");
-    return;
-  }
-
-  const width = image.naturalWidth;
-  const height = image.naturalHeight;
-
-  for (const [index, finding] of data.entries()) {
-    const xmin = (finding.bounding_box[0] / 1000) * width;
-    const ymin = (finding.bounding_box[1] / 1000) * height;
-    const xmax = (finding.bounding_box[2] / 1000) * width;
-    const ymax = (finding.bounding_box[3] / 1000) * height;
-    data[index].bounding_box = [xmin, ymin, xmax, ymax];
-  }
-
-  return data;
-};
-
 const importFromClipboard = async () => {
   try {
     const clipboardText = await navigator.clipboard.readText();
@@ -266,17 +245,10 @@ const analyzeWithClaude = async () => {
       );
       return;
     } else {
-      const normalizedOutput = normaliseBoundingBoxes(parsed.output);
-      if (!normalizedOutput) {
-        console.error(
-          "something went wrong in normalization process, image probably wasn't found",
-        );
-        return;
-      }
       // Update the store with the parsed data
       findingsStore.setThinkText(parsed.think);
       findingsStore.clearFindings();
-      findingsStore.addFindings(normalizedOutput);
+      findingsStore.addFindings(parsed.output);
 
       // Show success message
       clipboardActionText.value = "Analysis completed!";
