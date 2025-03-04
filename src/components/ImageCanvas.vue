@@ -6,7 +6,12 @@
       ref="containerRef"
       @mousedown="startDrawing"
     >
-      <img :src="imageUrl" ref="imageRef" class="max-w-full h-auto" />
+      <img
+        :src="imageUrl"
+        ref="imageRef"
+        class="max-w-full h-auto"
+        id="main-image"
+      />
       <!-- Render each bounding box -->
       <div
         v-if="showBoxes"
@@ -255,7 +260,7 @@ const handleResize = (e: MouseEvent) => {
     y_min = y_max;
     y_max = temp;
   }
-  
+
   // Constrain to image boundaries
   x_min = Math.max(0, Math.min(x_min, imgWidth));
   y_min = Math.max(0, Math.min(y_min, imgHeight));
@@ -314,14 +319,14 @@ const startDrawing = (e: MouseEvent) => {
   const rect = containerRef.value?.getBoundingClientRect();
   const imgWidth = imageRef.value?.width || 0;
   const imgHeight = imageRef.value?.height || 0;
-  
+
   let startX = e.clientX - (rect?.left ?? 0);
   let startY = e.clientY - (rect?.top ?? 0);
-  
+
   // Constrain to image boundaries
   startX = Math.max(0, Math.min(startX, imgWidth));
   startY = Math.max(0, Math.min(startY, imgHeight));
-  
+
   drawStartX.value = startX;
   drawStartY.value = startY;
 
@@ -335,15 +340,15 @@ const startDrawing = (e: MouseEvent) => {
 const handleDrawing = (e: MouseEvent) => {
   if (!isDrawing.value) return;
   if (!containerRef.value || !imageRef.value) return;
-  
+
   const rect = containerRef.value.getBoundingClientRect();
   const imgWidth = imageRef.value.width;
   const imgHeight = imageRef.value.height;
-  
+
   // Calculate current position
   let currentX = e.clientX - rect.left;
   let currentY = e.clientY - rect.top;
-  
+
   // Constrain to image boundaries
   currentX = Math.max(0, Math.min(currentX, imgWidth));
   currentY = Math.max(0, Math.min(currentY, imgHeight));

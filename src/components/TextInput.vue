@@ -95,6 +95,7 @@ import {
   getSection,
   safeParseJSON,
   basicFindingList,
+  basicFinding,
 } from "~/utils";
 
 import { useFindingsStore } from "~/stores/findings";
@@ -156,7 +157,7 @@ const exportToClipboard = () => {
   }, 500);
 };
 
-const parseTextForOneFinding = (text: string) => {
+const parseTextForOneImage = (text: string) => {
   // Get think section
   const thinkSectionText = getSection(text, "think").trim();
   if (!thinkSectionText) {
@@ -190,10 +191,31 @@ const parseTextForOneFinding = (text: string) => {
   };
 };
 
+const normaliseBoundingBoxes = (data: basicFinding[]) => {
+  const image = document.getElementById("main-image") as HTMLImageElement;
+  if (!image) {
+    console.error("Image element not found");
+    return;
+  }
+
+  const width = image.naturalWidth;
+  const height = image.naturalHeight;
+
+  for (const [index, finding] of data.entries()) {
+    const xmin = (finding.bounding_box[0] / 1000) * width;
+    const ymin = (finding.bounding_box[1] / 1000) * height;
+    const xmax = (finding.bounding_box[2] / 1000) * width;
+    const ymax = (finding.bounding_box[3] / 1000) * height;
+    data[index].bounding_box = [xmin, ymin, xmax, ymax];
+  }
+
+  return data;
+};
+
 const importFromClipboard = async () => {
   try {
     const clipboardText = await navigator.clipboard.readText();
-    const parsed = parseTextForOneFinding(clipboardText);
+    const parsed = parseTextForOneImage(clipboardText);
     if (!parsed) {
       console.error("Failed to parse text");
       return;
@@ -237,17 +259,24 @@ const analyzeWithClaude = async () => {
       imageData,
       mimeType,
     );
-    const parsed = parseTextForOneFinding(analysisResponse);
+    const parsed = parseTextForOneImage(analysisResponse);
     if (!parsed) {
       findingsStore.setThinkText(
         "Claude hallucinated bad output, sorry: " + analysisResponse,
       );
       return;
     } else {
+      const normalizedOutput = normaliseBoundingBoxes(parsed.output);
+      if (!normalizedOutput) {
+        console.error(
+          "something went wrong in normalization process, image probably wasn't found",
+        );
+        return;
+      }
       // Update the store with the parsed data
       findingsStore.setThinkText(parsed.think);
       findingsStore.clearFindings();
-      findingsStore.addFindings(parsed.output);
+      findingsStore.addFindings(normalizedOutput);
 
       // Show success message
       clipboardActionText.value = "Analysis completed!";
@@ -290,7 +319,7 @@ const correctWithClaude = async () => {
       mimeType,
       analysis,
     );
-    const parsed = parseTextForOneFinding(analysisResponse);
+    const parsed = parseTextForOneImage(analysisResponse);
     if (!parsed) {
       alert("Something went wrong while correcting");
       return;
