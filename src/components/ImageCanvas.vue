@@ -14,18 +14,19 @@
       />
       <!-- Render each bounding box -->
       <div
-        v-if="showBoxes"
         v-for="box in findingsStore.findingsBoxes"
         :key="box.id"
-        class="absolute border-2"
         :style="{
           left: `${box.x_min}px`,
           top: `${box.y_min}px`,
           width: `${box.x_max - box.x_min}px`,
           height: `${box.y_max - box.y_min}px`,
           borderColor: box.color,
+          border: showBoxes ? '2px solid' : 'inherit',
+          position: 'absolute',
           // Optionally show a dashed border if the box is being drawn
           borderStyle: box.id === drawingBoxId ? 'dashed' : 'solid',
+          backdropFilter: showBlur ? 'blur(15px)' : 'none',
         }"
         @mouseenter="setHoveredBox(box.id)"
         @mouseleave="clearHoveredBox"
@@ -41,6 +42,7 @@
 
         <!-- Resize handles (corners) -->
         <div
+          v-if="showBoxes"
           v-for="handle in ['nw', 'ne', 'se', 'sw'] as ResizeHandle[]"
           :key="handle"
           class="absolute w-2 h-2 bg-white border border-solid rounded-sm"
@@ -63,7 +65,10 @@
             cursor: getHandleCursor(handle),
           }"
           @mousedown.stop="(e) => startResize(e, box.id, handle)"
-          v-if="!(box.x_max - box.x_min < 50 || box.y_max - box.y_min < 50)"
+          v-if="
+            !(box.x_max - box.x_min < 50 || box.y_max - box.y_min < 50) &&
+            showBoxes
+          "
         ></div>
       </div>
     </div>
@@ -84,6 +89,16 @@
         <span class="mr-2 text-sm">Labels:</span>
         <label class="relative inline-flex items-center cursor-pointer">
           <input type="checkbox" v-model="showLabels" class="sr-only peer" />
+          <div
+            class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"
+          ></div>
+        </label>
+      </div>
+
+      <div class="flex items-center">
+        <span class="mr-2 text-sm">Blur:</span>
+        <label class="relative inline-flex items-center cursor-pointer">
+          <input type="checkbox" v-model="showBlur" class="sr-only peer" />
           <div
             class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"
           ></div>
@@ -141,6 +156,7 @@ const imageRef = ref<HTMLImageElement | null>(null);
 const containerRef = ref<HTMLDivElement | null>(null);
 const showBoxes = ref(true); // Toggle for showing/hiding bounding boxes
 const showLabels = ref(true); // Toggle for showing/hiding labels
+const showBlur = ref(false); // Toggle for applying blur effect to bounding boxes
 
 const findingsStore = useFindingsStore();
 
