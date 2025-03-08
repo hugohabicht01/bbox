@@ -21,8 +21,9 @@
           top: `${box.y_min}px`,
           width: `${box.x_max - box.x_min}px`,
           height: `${box.y_max - box.y_min}px`,
-          borderColor: box.color,
-          border: showBoxes ? '2px solid' : 'inherit',
+          border: showBoxes ? 'solid' : 'inherit',
+          'border-color': box.color,
+          borderWidth: showBoxes ? '2px' : 'inherit',
           position: 'absolute',
           // Optionally show a dashed border if the box is being drawn
           borderStyle: box.id === drawingBoxId ? 'dashed' : 'solid',
@@ -33,7 +34,7 @@
       >
         <!-- Box label -->
         <span
-          v-if="showLabels"
+          v-if="showLabels && showBoxes"
           class="absolute -top-6 left-0 px-2 py-1 text-sm text-white rounded"
           :style="{ backgroundColor: box.color }"
         >
