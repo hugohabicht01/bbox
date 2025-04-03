@@ -22,19 +22,20 @@ const migrateToInternalRepr = (json: string) => {
 
       // All files should use the string format with tags
       if (typeof fileData !== "string") {
-        error_keys.push(key);
-        fileData = "<think>EMPTY, erroneous data</think><output>[]</output>";
-        // throw new Error(
-        //   `Invalid format for ${key}: expected string with <think> and <output> tags`,
-        // );
+        throw new Error(
+          `Error: invalid data, format does not match expected schema for key ${key}`,
+        );
       }
 
       // Parse the <think> and <o> sections
-      const thinkContent = getSection(fileData, "think").trim();
-      const outputContent = getSection(fileData, "output").trim();
+      let thinkContent = getSection(fileData, "think").trim();
+      let outputContent = getSection(fileData, "output").trim();
 
       if (!thinkContent || !outputContent) {
-        throw new Error(`Missing <think> or <output> tags in data for ${key}`);
+        // save names for bad keys
+        error_keys.push(key);
+        thinkContent = "EMPTY, erroneous data";
+        outputContent = "[]";
       }
 
       // Parse output JSON
@@ -57,11 +58,15 @@ const migrateToInternalRepr = (json: string) => {
         throw parseError;
       }
     }) satisfies { file_name: string; labels: InternalRepr }[];
+
+    // if all keys are invalid, then the entire file is probably in the wrong format
     if (error_keys.length === data.length) {
       throw new Error(
         `Error: invalid data, entire format does not match expected schema`,
       );
     }
+
+    // show warning if its just a few keys
     if (error_keys.length > 0) {
       alert(
         `Error parsing some keys, invalid data for ${error_keys.join(", ")}`,
