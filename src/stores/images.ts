@@ -15,14 +15,18 @@ const migrateToInternalRepr = (json: string) => {
   try {
     const data = JSON.parse(json);
 
+    const error_keys: string[] = [];
+
     const migrated = Object.keys(data).map((key) => {
-      const fileData = data[key];
+      let fileData = data[key];
 
       // All files should use the string format with tags
       if (typeof fileData !== "string") {
-        throw new Error(
-          `Invalid format for ${key}: expected string with <think> and <output> tags`,
-        );
+        error_keys.push(key);
+        fileData = "<think>EMPTY, erroneous data</think><output>[]</output>";
+        // throw new Error(
+        //   `Invalid format for ${key}: expected string with <think> and <output> tags`,
+        // );
       }
 
       // Parse the <think> and <o> sections
@@ -53,6 +57,16 @@ const migrateToInternalRepr = (json: string) => {
         throw parseError;
       }
     }) satisfies { file_name: string; labels: InternalRepr }[];
+    if (error_keys.length === data.length) {
+      throw new Error(
+        `Error: invalid data, entire format does not match expected schema`,
+      );
+    }
+    if (error_keys.length > 0) {
+      alert(
+        `Error parsing some keys, invalid data for ${error_keys.join(", ")}`,
+      );
+    }
 
     return migrated;
   } catch (error) {
