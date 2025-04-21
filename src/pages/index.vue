@@ -137,28 +137,17 @@ const loadLabelsFromJSON = (jsonData: string) => {
 };
 
 const handleFileSelect = (event: Event): void => {
-  const target = event.target as HTMLInputElement;
-  const files = target.files;
+  const files = (event.target as HTMLInputElement).files;
   if (files) {
-    Array.from(files).forEach((file) => {
-      imagesStore.loadImage(file);
-    });
+    imagesStore.addImages(files);
   }
 };
 
 const handleDrop = (event: DragEvent): void => {
   const files = event.dataTransfer?.files;
   if (files) {
-    Array.from(files)
-      .filter(
-        (file) =>
-          file.type === "image/png" ||
-          file.type === "image/jpeg" ||
-          file.type === "image/webp",
-      )
-      .forEach((file) => {
-        imagesStore.loadImage(file);
-      });
+    // The addImages function in the store now handles file type validation
+    imagesStore.addImages(files);
   }
 };
 </script>

@@ -17,10 +17,10 @@
         v-for="box in findingsStore.findingsBoxes"
         :key="box.id"
         :style="{
-          left: `${box.x_min}px`,
-          top: `${box.y_min}px`,
-          width: `${box.x_max - box.x_min}px`,
-          height: `${box.y_max - box.y_min}px`,
+          left: `${box.box[0]}px`,
+          top: `${box.box[1]}px`,
+          width: `${box.box[2] - box.box[0]}px`,
+          height: `${box.box[3] - box.box[1]}px`,
           border: showBoxes ? 'solid' : 'inherit',
           'border-color': box.color,
           borderWidth: showBoxes ? '2px' : 'inherit',
@@ -67,7 +67,7 @@
           }"
           @mousedown.stop="(e) => startResize(e, box.id, handle)"
           v-if="
-            !(box.x_max - box.x_min < 50 || box.y_max - box.y_min < 50) &&
+            !(box.box[2] - box.box[0] < 50 || box.box[3] - box.box[1] < 50) &&
             showBoxes
           "
         ></div>
@@ -105,20 +105,6 @@
           ></div>
         </label>
       </div>
-
-      <div class="flex items-center">
-        <span class="mr-2 text-sm">Generate prefill:</span>
-        <label class="relative inline-flex items-center cursor-pointer">
-          <input
-            type="checkbox"
-            v-model="findingsStore.enablePrefill"
-            class="sr-only peer"
-          />
-          <div
-            class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"
-          ></div>
-        </label>
-      </div>
     </div>
   </div>
 </template>
@@ -126,16 +112,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, onUnmounted } from "vue";
 import { useFindingsStore } from "~/stores/findings";
-
-interface BoundingBox {
-  id: string;
-  x_min: number;
-  y_min: number;
-  x_max: number;
-  y_max: number;
-  color: string;
-  label: string;
-}
+import type { Finding, BboxType } from "~/utils/schemas";
 
 type ResizeHandle = "n" | "s" | "e" | "w" | "nw" | "ne" | "se" | "sw";
 
@@ -145,7 +122,7 @@ interface ResizeState {
   handle: ResizeHandle | null;
   startX: number;
   startY: number;
-  originalBox: BoundingBox | null;
+  originalBox: Finding | null;
 }
 
 // Props: imageUrl (one‑way)
@@ -229,42 +206,60 @@ const getHandleCursor = (handle: ResizeHandle): string => {
 };
 
 const startResize = (e: MouseEvent, boxId: string, handle: ResizeHandle) => {
-  e.preventDefault();
-  const box = findingsStore.getBox(boxId);
-  if (!box) return;
+  const finding = findingsStore.getFindingById(boxId);
+  if (!finding) return;
 
   resizeState.active = true;
   resizeState.boxId = boxId;
   resizeState.handle = handle;
   resizeState.startX = e.clientX;
   resizeState.startY = e.clientY;
-  resizeState.originalBox = { ...box };
+  resizeState.originalBox = finding;
 
   window.addEventListener("mousemove", handleResize);
   window.addEventListener("mouseup", stopResize);
 };
 
 const handleResize = (e: MouseEvent) => {
-  if (!resizeState.active || !resizeState.originalBox || !imageRef.value)
-    return;
+  if (!resizeState.active || !resizeState.originalBox || !resizeState.handle) return;
 
-  const deltaX = e.clientX - resizeState.startX;
-  const deltaY = e.clientY - resizeState.startY;
+  const originalFinding = resizeState.originalBox;
+  const original = originalFinding.bounding_box;
+  const dx = e.clientX - resizeState.startX;
+  const dy = e.clientY - resizeState.startY;
 
-  const handle = resizeState.handle;
-  const original = resizeState.originalBox;
-  const imgWidth = imageRef.value.width;
-  const imgHeight = imageRef.value.height;
+  let [x_min, y_min, x_max, y_max] = original;
 
-  let x_min = original.x_min;
-  let y_min = original.y_min;
-  let x_max = original.x_max;
-  let y_max = original.y_max;
-
-  if (handle?.includes("w")) x_min += deltaX;
-  if (handle?.includes("e")) x_max += deltaX;
-  if (handle?.includes("n")) y_min += deltaY;
-  if (handle?.includes("s")) y_max += deltaY;
+  switch (resizeState.handle) {
+    case "n":
+      y_min += dy;
+      break;
+    case "s":
+      y_max += dy;
+      break;
+    case "e":
+      x_max += dx;
+      break;
+    case "w":
+      x_min += dx;
+      break;
+    case "nw":
+      x_min += dx;
+      y_min += dy;
+      break;
+    case "ne":
+      x_max += dx;
+      y_min += dy;
+      break;
+    case "se":
+      x_max += dx;
+      y_max += dy;
+      break;
+    case "sw":
+      x_min += dx;
+      y_max += dy;
+      break;
+  }
 
   // Ensure min values don't exceed max values
   if (x_min > x_max) {
@@ -279,21 +274,23 @@ const handleResize = (e: MouseEvent) => {
   }
 
   // Constrain to image boundaries
+  const imgWidth = imageRef.value?.width || 0;
+  const imgHeight = imageRef.value?.height || 0;
   x_min = Math.max(0, Math.min(x_min, imgWidth));
   y_min = Math.max(0, Math.min(y_min, imgHeight));
   x_max = Math.max(0, Math.min(x_max, imgWidth));
   y_max = Math.max(0, Math.min(y_max, imgHeight));
 
-  const updatedBox = [x_min, y_min, x_max, y_max].map(Math.round) as [
-    number,
-    number,
-    number,
-    number,
-  ];
-  findingsStore.updateBox(resizeState.boxId, updatedBox);
+  const updatedBbox: BboxType = [x_min, y_min, x_max, y_max];
+
+  if (resizeState.boxId) {
+    findingsStore.updateBox(resizeState.boxId, updatedBbox);
+  }
 };
 
 const stopResize = () => {
+  if (!resizeState.active) return;
+
   resizeState.active = false;
   resizeState.boxId = null;
   resizeState.handle = null;

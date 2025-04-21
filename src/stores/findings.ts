@@ -1,213 +1,113 @@
 import { nanoid } from "nanoid";
 import { acceptHMRUpdate, defineStore } from "pinia";
-import type { Finding, BasicFinding, InternalRepr } from "~/utils";
-import {
-  findingToBasicFinding,
-  customFindingsStringify,
-  getRandomColor,
-} from "~/utils";
-
-export function formatFindings(findings: (Finding | BasicFinding)[]): string {
-  return `<output>\n${customFindingsStringify(findings)}\n</output>`;
-}
-
-export function formatForExport(internalRepr: InternalRepr): string | null {
-  if (!internalRepr.output) return null;
-
-  const cleaned = internalRepr.output.map(findingToBasicFinding);
-  const formattedOutput = customFindingsStringify(cleaned);
-
-  return `<think>\n${internalRepr.think}\n</think>\n<output>\n${formattedOutput}\n</output>`;
-}
+import { ref, computed } from "vue";
+import type { Finding, BasicFinding, InternalRepr, BboxType } from "~/utils/schemas";
+import { getRandomColor } from "~/utils/colors";
 
 export const useFindingsStore = defineStore("findings", () => {
   const findings = ref<Finding[]>([]);
   const thinkText = ref<string>("");
 
-  const enablePrefill = ref(true);
-
-  // The internal representation is the single source of truth
-  const internalRepr = computed<InternalRepr>(() => ({
+  const getFindings = computed<InternalRepr>(() => ({
     think: thinkText.value,
     output: findings.value,
   }));
+
+  const findingsBoxes = computed(() => {
+    return findings.value.map((f) => ({
+      id: f.id,
+      box: f.bounding_box,
+      color: f.color,
+      label: f.label,
+    }));
+  });
+
+  function setFindings(repr: InternalRepr) {
+    thinkText.value = repr.think || "";
+    findings.value = repr.output || [];
+  }
 
   function setThinkText(text: string) {
     thinkText.value = text;
   }
 
-  function setInternalRepr(repr: InternalRepr) {
-    thinkText.value = repr.think || "";
-    updateAllFindings(repr.output || []);
+  function addFinding(finding: BasicFinding): string {
+    const newFinding: Finding = {
+      ...finding,
+      id: nanoid(),
+      color: getRandomColor(),
+    };
+    findings.value.push(newFinding);
+    return newFinding.id;
   }
 
-  const getInternalRepr = computed(() => internalRepr.value);
-  const formattedForExport = () => formatForExport(internalRepr.value);
-
-  function addFinding(finding: BasicFinding) {
-    const id = nanoid();
-    const color = getRandomColor();
-
-    findings.value.push({ ...finding, id, color });
-    return id;
-  }
-
-  function generatePrefill(): {
-    label: string;
-    severity: number;
-    description: string;
-    explanation: string;
-  } {
-    if (!enablePrefill.value)
-      return {
-        label: "",
-        severity: 5,
-        description: "",
-        explanation: "",
-      };
-    if (findings.value.length > 0) {
-      // prefill with last data
-      return {
-        label: findings.value.at(-1)!.label,
-        severity: findings.value.at(-1)!.severity,
-        description: findings.value.at(-1)!.description,
-        explanation: findings.value.at(-1)!.explanation,
-      };
-    }
-    return {
+  function addBox(bbox: BboxType): string {
+    const placeholderFinding: BasicFinding = {
       label: "New Finding",
       severity: 5,
-      description: "This is a new finding.",
-      explanation: "This is an explanation for the new finding.",
-    };
-  }
-
-  function addBox(bbox: [number, number, number, number]) {
-    const id = nanoid();
-    const color = getRandomColor();
-
-    const prefill = generatePrefill();
-
-    findings.value.push({
-      id,
-      color,
+      description: "Bounding box added.",
+      explanation: "Explanation pending.",
       bounding_box: bbox,
-      label: prefill.label,
-      severity: prefill.severity,
-      description: prefill.description,
-      explanation: prefill.explanation,
-    });
-    return id;
-  }
-
-  function addFindings(basicFindings: BasicFinding[]) {
-    const ids = [];
-    for (const finding of basicFindings) {
-      const id = nanoid();
-      const color = getRandomColor();
-      findings.value.push({ ...finding, id, color });
-      ids.push(id);
-    }
-    return ids;
-  }
-
-  // Now only formats the findings part, not the full text with tags
-  const findingsFormatted = computed(() => formatFindings(findings.value));
-
-  const findingsBoxes = computed(() => {
-    return findings.value.map((finding) => {
-      const { id, color, bounding_box, label } = finding;
-      const [x_min, y_min, x_max, y_max] = bounding_box;
-      return {
-        id,
-        color,
-        label,
-        x_min,
-        y_min,
-        x_max,
-        y_max,
-      };
-    });
-  });
-
-  function getBox(id: string | null) {
-    if (!id) return null;
-
-    const finding = findings.value.find((f) => f.id === id);
-    if (!finding) return null;
-    const { color, bounding_box, label } = finding;
-    const [x_min, y_min, x_max, y_max] = bounding_box;
-    return {
-      id,
-      color,
-      label,
-      x_min,
-      y_min,
-      x_max,
-      y_max,
     };
+    return addFinding(placeholderFinding);
   }
 
-  function updateBox(
-    id: string | null,
-    newBox: [number, number, number, number],
-  ) {
-    if (!id) return;
-
-    const finding = findings.value.find((f) => f.id === id);
-    if (!finding) return;
-    finding.bounding_box = newBox;
+  function getFindingById(id: string | null): Finding | undefined {
+    if (!id) return undefined;
+    return findings.value.find((f) => f.id === id);
   }
 
-  function updateAllFindings(updatedFindings: Finding[]) {
-    findings.value = updatedFindings;
-  }
-
-  function updateFinding(updatedFinding: Finding) {
+  function updateFinding(updatedFinding: Finding): void {
     const index = findings.value.findIndex((f) => f.id === updatedFinding.id);
     if (index !== -1) {
-      findings.value[index] = updatedFinding;
+      findings.value[index] = {
+        ...findings.value[index],
+        ...updatedFinding,
+      };
+    } else {
+      console.warn(`Finding with id ${updatedFinding.id} not found for update.`);
     }
   }
 
-  function removeFinding(id: string) {
+  function updateBox(id: string | null, newBox: BboxType): void {
+    if (!id) return;
+    const finding = getFindingById(id);
+    if (finding) {
+      updateFinding({ ...finding, bounding_box: newBox });
+    }
+  }
+
+  function removeFinding(id: string): void {
     findings.value = findings.value.filter((f) => f.id !== id);
   }
 
-  function clearFindings() {
-    findings.value = [];
-  }
-
-  function $reset() {
+  function clearFindings(): void {
     findings.value = [];
     thinkText.value = "";
   }
 
+  function $reset(): void {
+    clearFindings();
+  }
+
   return {
     findings,
+    thinkText,
+    getFindings,
+    findingsBoxes,
+    setFindings,
+    setThinkText,
     addFinding,
     addBox,
+    getFindingById,
+    updateFinding,
+    updateBox,
     removeFinding,
     clearFindings,
-    addFindings,
-    findingsFormatted,
-    findingsBoxes,
-    getBox,
-    updateBox,
-    updateFinding,
-    setThinkText,
-    setInternalRepr,
-    getInternalRepr,
-    internalRepr,
-    thinkText,
-    updateAllFindings,
-    formattedForExport,
-    enablePrefill,
     $reset,
   };
 });
 
-if (import.meta.hot)
-  import.meta.hot.accept(
-    acceptHMRUpdate(useFindingsStore as any, import.meta.hot),
-  );
+if (import.meta.hot) {
+  import.meta.hot.accept(acceptHMRUpdate(useFindingsStore, import.meta.hot));
+}

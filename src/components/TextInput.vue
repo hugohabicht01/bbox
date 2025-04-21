@@ -89,14 +89,11 @@
 
 <script setup lang="ts">
 import { ref, watch } from "vue";
-import {
-  type Finding,
-  ClaudeService,
-  getSection,
-  safeParseJSON,
-  basicFindingList,
-  basicFinding,
-} from "~/utils";
+import type { Finding } from "~/utils/schemas";
+import { basicFindingListSchema } from "~/utils/schemas";
+import { getSection, safeParseJSON } from "~/utils/parsers";
+import { formatInternalReprForExport, basicToNormalized } from "~/utils/formatting";
+import { ClaudeService } from "~/utils"; // Assuming ClaudeService remains here for now
 
 import { useFindingsStore } from "~/stores/findings";
 import { useImagesStore } from "~/stores/images";
@@ -114,7 +111,7 @@ const claudeService = ClaudeService.getInstance();
 
 const clearAllLabels = () => {
   if (window.confirm("Do you really want to clear ALL labels?")) {
-    imageStore.clearAllLabels();
+    imageStore.deleteAllImages(); // Updated function call
   }
 };
 
@@ -146,9 +143,10 @@ const handleDeleteFinding = (id: number) => {
 };
 
 const exportToClipboard = () => {
-  const formatted = findingsStore.formattedForExport();
-  if (!formatted) return;
-  navigator.clipboard.writeText(formatted);
+  const currentFindings = findingsStore.getFindings;
+  const formattedOutput = formatInternalReprForExport(currentFindings);
+
+  navigator.clipboard.writeText(formattedOutput);
 
   clipboardActionText.value = "Copied to clipboard!";
   copied.value = true;
@@ -180,7 +178,7 @@ const parseTextForOneImage = (text: string) => {
   }
 
   // Validate the findings format
-  const validatedFindings = basicFindingList.safeParse(parsedOutput);
+  const validatedFindings = basicFindingListSchema.safeParse(parsedOutput);
   if (!validatedFindings.success) {
     console.error("Invalid findings format", validatedFindings.error);
     return;
@@ -200,13 +198,14 @@ const importFromClipboard = async () => {
       return;
     }
 
-    // Update the store with the parsed data
-    findingsStore.setThinkText(parsed.think);
-    findingsStore.clearFindings();
-    findingsStore.addFindings(parsed.output);
+    // Convert BasicFinding[] to Finding[] (InternalRepr's 'output' part) and update store
+    const normalizedFindings = basicToNormalized(parsed.output);
+    findingsStore.setFindings({
+      think: parsed.think,
+      output: normalizedFindings,
+    });
 
-    // Show success message
-    clipboardActionText.value = "Data pasted successfully!";
+    clipboardActionText.value = "Pasted from clipboard!";
     copied.value = true;
     setTimeout(() => {
       copied.value = false;
@@ -245,12 +244,13 @@ const analyzeWithClaude = async () => {
       );
       return;
     } else {
-      // Update the store with the parsed data
-      findingsStore.setThinkText(parsed.think);
-      findingsStore.clearFindings();
-      findingsStore.addFindings(parsed.output);
+      // Convert BasicFinding[] to Finding[] (InternalRepr's 'output' part) and update store
+      const normalizedFindings = basicToNormalized(parsed.output);
+      findingsStore.setFindings({
+        think: parsed.think,
+        output: normalizedFindings,
+      });
 
-      // Show success message
       clipboardActionText.value = "Analysis completed!";
       copied.value = true;
       setTimeout(() => {
@@ -280,7 +280,8 @@ const correctWithClaude = async () => {
     // get the current mimetype from the data url
     const mimeType = currentImage.url.split(";")[0].split(":")[1];
 
-    const analysis = findingsStore.formattedForExport();
+    const currentFindings = findingsStore.getFindings;
+    const analysis = formatInternalReprForExport(currentFindings);
     if (!analysis) {
       alert("Nothing to correct yet");
       return;
@@ -296,12 +297,13 @@ const correctWithClaude = async () => {
       alert("Something went wrong while correcting");
       return;
     } else {
-      // Update the store with the parsed data
-      findingsStore.setThinkText(parsed.think);
-      findingsStore.clearFindings();
-      findingsStore.addFindings(parsed.output);
+      // Convert BasicFinding[] to Finding[] (InternalRepr's 'output' part) and update store
+      const normalizedFindings = basicToNormalized(parsed.output);
+      findingsStore.setFindings({
+        think: parsed.think,
+        output: normalizedFindings,
+      });
 
-      // Show success message
       clipboardActionText.value = "Correction completed!";
       copied.value = true;
       setTimeout(() => {
