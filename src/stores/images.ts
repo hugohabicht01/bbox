@@ -1,4 +1,5 @@
 import { acceptHMRUpdate, defineStore } from "pinia";
+import { nanoid } from "nanoid";
 import { ref, computed } from "vue";
 import { useFindingsStore } from "./findings";
 import {
@@ -85,11 +86,10 @@ const migrateToInternalRepr = (json: string) => {
 };
 
 const basicToNormalized = (basicFindings: basicFinding[]): Finding[] => {
-  let id = 1;
   const migrated: Finding[] = [];
   for (const bf of basicFindings) {
     migrated.push({
-      id: id++,
+      id: nanoid(),
       label: bf.label,
       description: bf.description,
       explanation: bf.explanation,
