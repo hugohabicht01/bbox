@@ -32,6 +32,22 @@
           <div class="i-carbon-trash-can w-4 h-4"></div>
         </button>
       </div>
+
+      <!-- Add new images button -->
+      <div class="cursor-pointer mt-4">
+        <label
+          class="w-full h-24 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center cursor-pointer hover:bg-gray-50 transition-colors"
+        >
+          <div class="i-carbon-add w-8 h-8 text-gray-500"></div>
+          <input
+            type="file"
+            @change="handleFileSelect"
+            accept="image/png,image/jpeg,image/webp"
+            multiple
+            class="hidden"
+          />
+        </label>
+      </div>
     </div>
     <button
       @click="deleteAllImages"
@@ -60,6 +76,19 @@ const scrollToSelectedImage = (index: number) => {
   if (selectedImage && scrollContainer.value) {
     selectedImage.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
+};
+
+// Function to handle file selection for new images
+const handleFileSelect = (event: Event): void => {
+  const target = event.target as HTMLInputElement;
+  const files = target.files;
+  if (files) {
+    Array.from(files).forEach((file) => {
+      imagesStore.loadImage(file);
+    });
+  }
+  // Reset the input to allow selecting the same files again
+  target.value = "";
 };
 
 // Watch for changes in selected image index

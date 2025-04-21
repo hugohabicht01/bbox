@@ -18,7 +18,7 @@
           <input
             type="file"
             @change="handleFileSelect"
-            accept="image/png,image/jpeg"
+            accept="image/png,image/jpeg,image/webp"
             multiple
             class="mb-4"
           />
@@ -150,7 +150,12 @@ const handleDrop = (event: DragEvent): void => {
   const files = event.dataTransfer?.files;
   if (files) {
     Array.from(files)
-      .filter((file) => file.type === "image/png" || file.type === "image/jpeg")
+      .filter(
+        (file) =>
+          file.type === "image/png" ||
+          file.type === "image/jpeg" ||
+          file.type === "image/webp",
+      )
       .forEach((file) => {
         imagesStore.loadImage(file);
       });
