@@ -1,0 +1,102 @@
+# General information
+- this is a vite project, using typescript, vue 3 with script setup
+- Styling is done with UnoCSS, a css engine similar to tailwind. All tailwind classes will work, as well as some other custom UnoCSS specific classes
+- Routing is done via File-based routing, based on files in the /pages directory.
+- Components are stored in the /components directory.
+- State is managed via pinia, in two different pinia stores, finding.ts and images.ts. Both of them are directly related to each other
+- The webapp is built exclusively for desktop use, mobile use is not supported
+- Efficent usage via keyboard inputs is key, good UX is crucial, as this app is used to manually analyse a lot of data
+
+# Purpose of the project
+- This project is a custom webapp for labelling images for machine learning datasets with focus on bounding box labelling
+- It's making use of a custom format, where each image is labelled with a plain text annotation, which follows a custom format
+
+## Description of the custom format
+The custom format is meant for describing bounding boxes for an image in a structured format, together with a natural language text description of the image.
+
+The data is formatted in a custom XML-like format, that has two main keys, <think> and <output>.
+
+Everything within the <think> tag is a natural language description of the image.
+
+Everything within the <output> tag is a structured JSON based format containing the bounding boxes
+
+
+## Example
+<think>
+Let's analyze the image step by step:
+
+1. The man in the foreground is wearing a plaid shirt and jeans. His face is clearly visible, which is private data.
+2. The man sitting on the left is wearing a white t-shirt and shorts. His face is also visible, which is private data.
+further explanations ommitted...
+</think>
+<output>
+[
+    {
+        "label": "face",
+        "description": "Face of the man in the foreground",
+        "explanation": "A human face is considered private data as it can be used to identify an individual.",
+        "bounding_box": [182, 10, 265, 120],
+        "severity": 7
+    }
+]
+</output>
+
+## Schema
+The structured JSON data within the <output> tags is an array of objects, where each object can be described with the following zod schema:
+
+```typescript
+export const bboxSchema = z
+  .tuple([z.number(), z.number(), z.number(), z.number()])
+  .refine((coords) => coords.every((n) => n >= 0), {
+    message: "All coordinates must be non-negative",
+  })
+  .refine((coords) => coords[0] < coords[2] && coords[1] < coords[3], {
+    message: "x_min must be less than x_max and y_min must be less than y_max",
+  });
+
+export const basicFindingSchema = z.object({
+  label: z.string(),
+  description: z.string(),
+  explanation: z.string(),
+  bounding_box: bboxSchema,
+  severity: z.number(),
+});
+```
+
+Each bounding box is in the Pascal VOC format, with each number in the array corresponding to the following values: [x_min, y_min, x_max, y_max], with the top left corner of the image being the origin
+
+
+## Explanation of the current setup
+- The current setup lets the user load images, which are then stored in the imagesStore (`src/stores/images.ts`).
+- All images are kept track of in the `images: ref<ImageItem[]>` vue ref. 
+- The currently selected image is tracked by `selectedImageIndex`, with a computed property `selectedImage` for easy access.
+- Images can be navigated (`nextImage`, `previousImage`), selected (`selectImage`), or deleted (`deleteImage`).
+
+There is a fundamental problem in that the format of the annotations is not very nice to work with and doesn't allow you to track each individual bounding box. Therefore, all data is stored internally in an internal format that contains significantly more information than the custom format.
+
+Whenever data is imported or exported, a data migration process takes places to either add our custom properties, or remove them.
+
+## Internal format
+
+The internal format is a zod object that contains the following properties:
+
+```typescript
+export const internalReprSchema = z.object({
+  id: z.number(),
+  label: z.string(),
+  description: z.string(),
+  explanation: z.string(),
+  bounding_box: bboxSchema,
+  severity: z.number(),
+  color: z.string(),
+});
+```
+
+Additionally, the whole text based annotation is split into two parts, the `<think>` text and the `<output>` JSON. The think text is just stored and used a normal string, while the output section (a list of bounding box objects) is being worked on as normal objects, with internalRepr type
+
+In the UI, the think text is shown in a simple textarea, whilst the list of bounding boxes is displayed both in a custom UI and as drawn bounding boxes, drawn over the image.
+
+
+## Stores
+The findings store is used to hold and manipulate the findings (bounding boxes + text) for the current image, whilst the images stores keeps track of all images and saves their findings. When the user navigates to a new image, the findings store is saved in the image store and the new image's findings are loaded.
+This is a suboptimal solution, which should be refactored soon™
