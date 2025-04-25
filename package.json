@@ -15,6 +15,7 @@
     "@gradio/client": "^1.14.2",
     "@vercel/node": "^5.1.10",
     "@vueuse/core": "^12.7.0",
+    "formidable": "^3.5.4",
     "nanoid": "^5.1.2",
     "pinia": "^3.0.1",
     "vite-plugin-vercel": "^9.0.5",
@@ -25,6 +26,7 @@
   "devDependencies": {
     "@antfu/eslint-config": "^4.3.0",
     "@iconify-json/carbon": "^1.2.7",
+    "@types/formidable": "^3.4.5",
     "@types/node": "^22.13.4",
     "@unocss/eslint-config": "^66.0.0",
     "@unocss/eslint-plugin": "^66.0.0",

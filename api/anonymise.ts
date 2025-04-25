@@ -1,5 +1,8 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { Client } from "@gradio/client";
+import formidable, { Fields, Files } from "formidable";
+
+// This code is running in a nodejs runtime in a vercel function on node 22
 
 export const edge = false; // Use Node.js runtime
 
@@ -39,28 +42,24 @@ export default async function handler(
   }
 
   try {
-    // Parse the multipart form data
-    const formData = await new Promise<FormData>((resolve, reject) => {
-      const form = new FormData();
-      request.on('data', (chunk) => {
-        form.append('data', chunk);
-      });
-      request.on('end', () => {
-        resolve(form);
-      });
-      request.on('error', (err) => {
-        reject(err);
+
+    // Parse the multipart form data using formidable
+    const form = new formidable.IncomingForm();
+    const { fields, files } = await new Promise<{ fields: Fields; files: Files }>((resolve, reject) => {
+      form.parse(request, (err: any, fields: Fields, files: Files) => {
+        if (err) reject(err);
+        else resolve({ fields, files });
       });
     });
 
-    // Get the image file from the form data
-    const imageFile = formData.get('image') as File;
+    // Get the image file from the parsed form data
+    const imageFile = files.image;
     if (!imageFile) {
       return response.status(400).json({ error: "Image file missing" });
     }
 
-    // Get the text analysis from the form data
-    const analysisText = formData.get('text_analysis') as string;
+    // Get the text analysis from the parsed form data
+    const analysisText = fields.text_analysis as string;
     if (!analysisText) {
       console.error("text analysis wasn't passed");
       return response.status(400).json({ error: "Text analysis missing" });
