@@ -9,7 +9,7 @@
       <img
         :src="imageUrl"
         ref="imageRef"
-        class="max-w-full h-auto"
+        class="max-w-full h-auto select-none"
         id="main-image"
       />
       <!-- Render each bounding box -->
@@ -23,7 +23,7 @@
         <!-- Box label -->
         <span
           v-if="showLabels && showBoxes"
-          class="absolute -top-6 left-0 px-2 py-1 text-sm text-white rounded"
+          class="absolute -top-6 left-0 px-2 py-1 text-sm text-white rounded select-none"
           :style="{ backgroundColor: box.color }"
         >
           {{ box.label || `Box ${box.id}` }}
@@ -100,7 +100,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, watch } from "vue";
-import { useResizeObserver } from "@vueuse/core";
+import { useElementSize } from "@vueuse/core";
 import { useImagesStore } from "~/stores/images";
 import { useFindingsStore } from "~/stores/findings";
 
@@ -126,19 +126,14 @@ const imageRef = ref<HTMLImageElement | null>(null);
 const containerRef = ref<HTMLDivElement | null>(null);
 
 // --- SCALED IMAGE SIZE ---
-// Use VueUse's useResizeObserver to reactively track the container size
-const containerSize = ref({ width: 1, height: 1 });
-useResizeObserver(containerRef, (entries) => {
-  const entry = entries[0];
-  const box = entry.contentRect;
-  containerSize.value = { width: box.width, height: box.height };
-});
+// Track rendered image size
+const { width: imgWidth } = useElementSize(imageRef);
 
 // Compute scale (assume aspect ratio is preserved)
 const scale = computed(() => {
   const img = imageRef.value;
   if (!img || !img.naturalWidth) return 1;
-  return containerSize.value.width / img.naturalWidth;
+  return imgWidth.value / img.naturalWidth;
 });
 
 // --- SCALED BOUNDING BOXES ---
@@ -186,8 +181,9 @@ const resizeState = reactive<ResizeState>({
 
 // Helper to convert client (screen) coordinates to image (natural) coordinates
 function clientToImageCoords(clientX: number, clientY: number) {
-  const rect = containerRef.value?.getBoundingClientRect();
-  if (!rect) return { x: 0, y: 0 };
+  const img = imageRef.value;
+  if (!img) return { x: 0, y: 0 };
+  const rect = img.getBoundingClientRect();
   const s = scale.value;
   return {
     x: (clientX - rect.left) / s,
@@ -319,12 +315,12 @@ const handleResize = (e: MouseEvent) => {
   }
 
   // Constrain to image boundaries
-  const imgWidth = imageRef.value?.width || 0;
-  const imgHeight = imageRef.value?.height || 0;
-  x_min = Math.max(0, Math.min(x_min, imgWidth));
-  y_min = Math.max(0, Math.min(y_min, imgHeight));
-  x_max = Math.max(0, Math.min(x_max, imgWidth));
-  y_max = Math.max(0, Math.min(y_max, imgHeight));
+  const imgNaturalWidth = imageRef.value?.naturalWidth || 0;
+  const imgNaturalHeight = imageRef.value?.naturalHeight || 0;
+  x_min = Math.max(0, Math.min(x_min, imgNaturalWidth));
+  y_min = Math.max(0, Math.min(y_min, imgNaturalHeight));
+  x_max = Math.max(0, Math.min(x_max, imgNaturalWidth));
+  y_max = Math.max(0, Math.min(y_max, imgNaturalHeight));
 
   const updatedBbox: BboxType = [x_min, y_min, x_max, y_max];
 
@@ -386,7 +382,12 @@ const startDrawing = (e: MouseEvent) => {
 
 const handleDrawing = (e: MouseEvent) => {
   if (!isDrawing.value) return;
-  const { x, y } = clientToImageCoords(e.clientX, e.clientY);
+  const img = imageRef.value;
+  if (!img) return;
+  let { x, y } = clientToImageCoords(e.clientX, e.clientY);
+  // clamp to natural bounds
+  x = Math.max(0, Math.min(x, img.naturalWidth));
+  y = Math.max(0, Math.min(y, img.naturalHeight));
   const x_min = Math.round(Math.min(drawStartX.value, x));
   const x_max = Math.round(Math.max(drawStartX.value, x));
   const y_min = Math.round(Math.min(drawStartY.value, y));
