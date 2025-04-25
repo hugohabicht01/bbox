@@ -12,17 +12,16 @@ export const config = {
 // Ensure HF_TOKEN is set in environment variables
 const HF_TOKEN = process.env.HF_TOKEN;
 
-
 export type ImageMetaData = {
-    path: string;
-    url: string;
-    size: null;
-    orig_name: string;
-    mime_type: string | null;
-    is_stream: boolean;
-    meta: {
-      _type: "gradio.FileData";
-    };
+  path: string;
+  url: string;
+  size: null;
+  orig_name: string;
+  mime_type: string | null;
+  is_stream: boolean;
+  meta: {
+    _type: "gradio.FileData";
+  };
 }
 
 export default async function handler(
@@ -40,22 +39,32 @@ export default async function handler(
   }
 
   try {
-    const buffers = [];
-    for await (const chunk of request) {
-      buffers.push(chunk);
+    // Parse the multipart form data
+    const formData = await new Promise<FormData>((resolve, reject) => {
+      const form = new FormData();
+      request.on('data', (chunk) => {
+        form.append('data', chunk);
+      });
+      request.on('end', () => {
+        resolve(form);
+      });
+      request.on('error', (err) => {
+        reject(err);
+      });
+    });
+
+    // Get the image file from the form data
+    const imageFile = formData.get('image') as File;
+    if (!imageFile) {
+      return response.status(400).json({ error: "Image file missing" });
     }
-    const blobBuffer = Buffer.concat(buffers);
-    const mimeType = request.headers['x-file-type'] as string | undefined;
-    if (!mimeType) {
-      console.error("mime type wasn't passed, defaulting to application/octet-stream");
-    }
-    const analysisText = request.headers['x-text-analysis'] as string | undefined;
+
+    // Get the text analysis from the form data
+    const analysisText = formData.get('text_analysis') as string;
     if (!analysisText) {
       console.error("text analysis wasn't passed");
       return response.status(400).json({ error: "Text analysis missing" });
     }
-
-    const imageBlob = new Blob([blobBuffer], { type: mimeType ?? 'application/octet-stream' });
 
     // Connect to Gradio client
     console.log("Connecting to Gradio client...");
@@ -65,7 +74,7 @@ export default async function handler(
     // Call the prediction endpoint
     console.log("Sending image to prediction endpoint...");
     const result = await client.predict("/perform_anonymisation", {
-      input_image_pil: imageBlob,
+      input_image_pil: imageFile,
       raw_model_output: analysisText,
     });
 

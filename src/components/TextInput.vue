@@ -125,6 +125,8 @@ const anonymiseImage = async () => {
 
     const currentFindings = findingsStore.getFindings;
     const formattedOutput = formatInternalReprForExport(currentFindings);
+    console.log("formatted output:")
+    console.log(formattedOutput)
 
     const anonymisedResponse = await claudeService.anonymiseImage(
       currentImage.file,

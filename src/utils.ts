@@ -105,15 +105,14 @@ export class ClaudeService {
     const shortened_text_analysis = text_analysis.replace(/<think>.*?<\/think>/s, '<think></think>');
 
     try {
+      // Create a FormData object to send both the image and text analysis
+      const formData = new FormData();
+      formData.append('image', image);
+      formData.append('text_analysis', shortened_text_analysis);
+
       const response = await fetch(this.anonymisationEndpoint, {
         method: "POST",
-        headers: {
-          'Content-Type': 'application/octet-stream',
-          'X-File-Type': image.type,
-          // THIS IS A TOTAL HACK CUZ I'M TOO LAZY TO SET UP BODY PARSING
-          'X-Text-Analysis': shortened_text_analysis,
-        },
-        body: image,
+        body: formData,
       });
 
       if (!response.ok) {
