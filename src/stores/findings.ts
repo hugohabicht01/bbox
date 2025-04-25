@@ -52,9 +52,9 @@ export const useFindingsStore = defineStore("findings", () => {
     return addFinding(placeholderFinding);
   }
 
-  function getFindingById(id: string | null): Finding | undefined {
-    if (!id) return undefined;
-    return findings.value.find((f) => f.id === id);
+  function getFindingById(id: string | null): Finding | null {
+    if (!id) return null;
+    return findings.value.find((f) => f.id === id) || null;
   }
 
   function updateFinding(updatedFinding: Finding): void {

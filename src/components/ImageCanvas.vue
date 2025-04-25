@@ -14,21 +14,9 @@
       />
       <!-- Render each bounding box -->
       <div
-        v-for="box in findingsStore.findingsBoxes"
+        v-for="box in scaledBoxes"
         :key="box.id"
-        :style="{
-          left: `${box.box[0]}px`,
-          top: `${box.box[1]}px`,
-          width: `${box.box[2] - box.box[0]}px`,
-          height: `${box.box[3] - box.box[1]}px`,
-          border: showBoxes ? 'solid' : 'inherit',
-          'border-color': box.color,
-          borderWidth: showBoxes ? '2px' : 'inherit',
-          position: 'absolute',
-          // Optionally show a dashed border if the box is being drawn
-          borderStyle: box.id === drawingBoxId ? 'dashed' : 'solid',
-          backdropFilter: showBlur ? 'blur(15px)' : 'none',
-        }"
+        :style="box.style"
         @mouseenter="setHoveredBox(box.id)"
         @mouseleave="clearHoveredBox"
       >
@@ -111,7 +99,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, onUnmounted } from "vue";
+import { ref, reactive, computed, watch } from "vue";
+import { useResizeObserver } from "@vueuse/core";
 import { useImagesStore } from "~/stores/images";
 import { useFindingsStore } from "~/stores/findings";
 
@@ -135,6 +124,49 @@ const props = defineProps({
 
 const imageRef = ref<HTMLImageElement | null>(null);
 const containerRef = ref<HTMLDivElement | null>(null);
+
+// --- SCALED IMAGE SIZE ---
+// Use VueUse's useResizeObserver to reactively track the container size
+const containerSize = ref({ width: 1, height: 1 });
+useResizeObserver(containerRef, (entries) => {
+  const entry = entries[0];
+  const box = entry.contentRect;
+  containerSize.value = { width: box.width, height: box.height };
+});
+
+// Compute scale (assume aspect ratio is preserved)
+const scale = computed(() => {
+  const img = imageRef.value;
+  if (!img || !img.naturalWidth) return 1;
+  return containerSize.value.width / img.naturalWidth;
+});
+
+// --- SCALED BOUNDING BOXES ---
+import type { CSSProperties } from "vue";
+
+const scaledBoxes = computed(() =>
+  findingsStore.findingsBoxes.map((box) => {
+    const [x1, y1, x2, y2] = box.box;
+    const s = scale.value;
+    // Use CSSProperties typing for style
+    const style: CSSProperties = {
+      left: `${x1 * s}px`,
+      top: `${y1 * s}px`,
+      width: `${(x2 - x1) * s}px`,
+      height: `${(y2 - y1) * s}px`,
+      border: showBoxes.value ? "2px solid" : "inherit",
+      borderColor: box.color,
+      position: "absolute",
+      borderStyle: box.id === drawingBoxId.value ? "dashed" : "solid",
+      backdropFilter: showBlur.value ? "blur(15px)" : "none",
+      boxSizing: "border-box",
+    };
+    return {
+      ...box,
+      style,
+    };
+  })
+);
 const showBoxes = ref(true); // Toggle for showing/hiding bounding boxes
 const showLabels = ref(true); // Toggle for showing/hiding labels
 const showBlur = ref(false); // Toggle for applying blur effect to bounding boxes
@@ -151,6 +183,17 @@ const resizeState = reactive<ResizeState>({
   startY: 0,
   originalBox: null,
 });
+
+// Helper to convert client (screen) coordinates to image (natural) coordinates
+function clientToImageCoords(clientX: number, clientY: number) {
+  const rect = containerRef.value?.getBoundingClientRect();
+  if (!rect) return { x: 0, y: 0 };
+  const s = scale.value;
+  return {
+    x: (clientX - rect.left) / s,
+    y: (clientY - rect.top) / s,
+  };
+}
 
 const positions = {
   n: {
@@ -210,27 +253,25 @@ const getHandleCursor = (handle: ResizeHandle): string => {
 };
 
 const startResize = (e: MouseEvent, boxId: string, handle: ResizeHandle) => {
-  const finding = findingsStore.getFindingById(boxId);
-  if (!finding) return;
-
+  if (!containerRef.value) return;
   resizeState.active = true;
   resizeState.boxId = boxId;
   resizeState.handle = handle;
-  resizeState.startX = e.clientX;
-  resizeState.startY = e.clientY;
-  resizeState.originalBox = finding;
-
+  const { x, y } = clientToImageCoords(e.clientX, e.clientY);
+  resizeState.startX = x;
+  resizeState.startY = y;
+  resizeState.originalBox = findingsStore.getFindingById(boxId);
   window.addEventListener("mousemove", handleResize);
   window.addEventListener("mouseup", stopResize);
 };
 
 const handleResize = (e: MouseEvent) => {
-  if (!resizeState.active || !resizeState.originalBox || !resizeState.handle) return;
-
+  if (!resizeState.active || !resizeState.originalBox) return;
+  const { x, y } = clientToImageCoords(e.clientX, e.clientY);
   const originalFinding = resizeState.originalBox;
   const original = originalFinding.bounding_box;
-  const dx = e.clientX - resizeState.startX;
-  const dy = e.clientY - resizeState.startY;
+  const dx = x - resizeState.startX;
+  const dy = y - resizeState.startY;
 
   let [x_min, y_min, x_max, y_max] = original;
 
@@ -308,6 +349,9 @@ const stopResize = () => {
 const isDrawing = ref(false);
 const drawStartX = ref(0);
 const drawStartY = ref(0);
+
+// Helper for drawing: always work in image (natural) coordinates
+
 const drawingBoxId = ref<string | null>(null);
 
 watch(
@@ -329,52 +373,24 @@ watch(
 );
 
 const startDrawing = (e: MouseEvent) => {
-  // Only start drawing if the target is the image
-  if (e.target !== imageRef.value) return;
-  e.preventDefault();
+  if (!containerRef.value) return;
   isDrawing.value = true;
-
-  const rect = containerRef.value?.getBoundingClientRect();
-  const imgWidth = imageRef.value?.width || 0;
-  const imgHeight = imageRef.value?.height || 0;
-
-  let startX = e.clientX - (rect?.left ?? 0);
-  let startY = e.clientY - (rect?.top ?? 0);
-
-  // Constrain to image boundaries
-  startX = Math.max(0, Math.min(startX, imgWidth));
-  startY = Math.max(0, Math.min(startY, imgHeight));
-
-  drawStartX.value = startX;
-  drawStartY.value = startY;
-
-  const newId = findingsStore.addBox([startX, startY, startX, startY]);
+  const { x, y } = clientToImageCoords(e.clientX, e.clientY);
+  drawStartX.value = x;
+  drawStartY.value = y;
+  const newId = findingsStore.addBox([x, y, x, y]);
   drawingBoxId.value = newId;
-
   window.addEventListener("mousemove", handleDrawing);
   window.addEventListener("mouseup", stopDrawing);
 };
 
 const handleDrawing = (e: MouseEvent) => {
   if (!isDrawing.value) return;
-  if (!containerRef.value || !imageRef.value) return;
-
-  const rect = containerRef.value.getBoundingClientRect();
-  const imgWidth = imageRef.value.width;
-  const imgHeight = imageRef.value.height;
-
-  // Calculate current position
-  let currentX = e.clientX - rect.left;
-  let currentY = e.clientY - rect.top;
-
-  // Constrain to image boundaries
-  currentX = Math.max(0, Math.min(currentX, imgWidth));
-  currentY = Math.max(0, Math.min(currentY, imgHeight));
-
-  const x_min = Math.round(Math.min(drawStartX.value, currentX));
-  const x_max = Math.round(Math.max(drawStartX.value, currentX));
-  const y_min = Math.round(Math.min(drawStartY.value, currentY));
-  const y_max = Math.round(Math.max(drawStartY.value, currentY));
+  const { x, y } = clientToImageCoords(e.clientX, e.clientY);
+  const x_min = Math.round(Math.min(drawStartX.value, x));
+  const x_max = Math.round(Math.max(drawStartX.value, x));
+  const y_min = Math.round(Math.min(drawStartY.value, y));
+  const y_max = Math.round(Math.max(drawStartY.value, y));
   findingsStore.updateBox(drawingBoxId.value, [x_min, y_min, x_max, y_max]);
 };
 

@@ -14,7 +14,7 @@
     "@anthropic-ai/sdk": "^0.39.0",
     "@gradio/client": "^1.14.2",
     "@vercel/node": "^5.1.10",
-    "@vueuse/core": "^12.7.0",
+    "@vueuse/core": "^13.1.0",
     "formidable": "^3.5.4",
     "nanoid": "^5.1.2",
     "pinia": "^3.0.1",
