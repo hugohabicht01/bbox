@@ -17,19 +17,20 @@
             <span v-else class="i-carbon-bot inline-block"></span>
             {{ isAnalyzing ? "Analyzing..." : "Analyze with Qwen" }}
           </button>
-          <button
-            @click="correctWithClaude"
-            class="btn bg-sky-500 hover:bg-sky-600 text-white text-sm px-3 py-1 rounded-lg flex items-center gap-1 m-1"
-            :disabled="isCorrecting"
-            :class="{ 'opacity-70 cursor-not-allowed': isCorrecting }"
-          >
-            <div
-              v-if="isCorrecting"
-              class="i-carbon-circle-dash inline-block animate-spin"
-            ></div>
-            <span v-else class="i-carbon-bot inline-block"></span>
-            {{ isCorrecting ? "Correcting..." : "Correct with Claude" }}
-          </button>
+
+      <button
+        @click="anonymiseImage"
+        class="btn bg-rose-500 hover:bg-rose-600 text-white text-sm px-3 py-1 rounded-lg flex items-center gap-1 m-1"
+        :disabled="isAnonymising"
+        :class="{ 'opacity-70 cursor-not-allowed': isAnonymising }"
+      >
+        <div
+          v-if="isAnonymising"
+          class="i-carbon-circle-dash inline-block animate-spin"
+        ></div>
+        <span class="i-carbon-paint-brush inline-block"></span>
+        {{ isAnonymising ? "Anonymising..." : "Anonymise" }}
+      </button>
         </div>
         <textarea
           v-model="thinkText"
@@ -93,7 +94,7 @@ import type { Finding } from "~/utils/schemas";
 import { basicFindingListSchema } from "~/utils/schemas";
 import { getSection, safeParseJSON } from "~/utils/parsers";
 import { formatInternalReprForExport, basicToNormalized } from "~/utils/formatting";
-import { ClaudeService } from "~/utils"; // Assuming ClaudeService remains here for now
+import { ClaudeService } from "~/utils";
 
 import { useFindingsStore } from "~/stores/findings";
 import { useAnonymisedStore } from "~/stores/anonymised";
@@ -102,7 +103,7 @@ import FindingDisplay from "~/components/FindingDisplay.vue";
 
 const thinkText = ref("");
 const isAnalyzing = ref(false);
-const isCorrecting = ref(false);
+const isAnonymising = ref(false)
 const copied = ref(false);
 const clipboardActionText = ref("Copied!");
 
@@ -110,6 +111,34 @@ const findingsStore = useFindingsStore();
 const imageStore = useImagesStore();
 const anonymisedStore = useAnonymisedStore();
 const claudeService = ClaudeService.getInstance();
+
+
+const anonymiseImage = async () => {
+  const currentImage = imageStore.selectedImage;
+  if (!currentImage) {
+    alert("Please select an image first");
+    return;
+  }
+
+  try {
+    isAnonymising.value = true;
+
+    const currentFindings = findingsStore.getFindings;
+    const formattedOutput = formatInternalReprForExport(currentFindings);
+
+    const anonymisedResponse = await claudeService.anonymiseImage(
+      currentImage.file,
+      formattedOutput
+    );
+
+    anonymisedStore.setImage(anonymisedResponse.anonymized_image);
+  } catch (error) {
+    console.error("Error anonymising image:", error);
+    alert("Failed to anonymise image. Please try again later.");
+  } finally {
+    isAnonymising.value = false;
+  }
+};
 
 const clearAllLabels = () => {
   if (window.confirm("Do you really want to clear ALL labels?")) {

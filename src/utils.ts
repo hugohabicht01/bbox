@@ -94,12 +94,15 @@ export class ClaudeService {
 
 
   public async anonymiseImage(
-    image: File
+    image: File,
+    text_analysis: string
   ): Promise<{  anonymized_image: ImageMetaData }> {
     if (this.anonymising) {
       throw new Error("Anonymisation already in progress.");
     }
     this.anonymising = true;
+
+    const shortened_text_analysis = text_analysis.replace(/<think>.*?<\/think>/s, '<think></think>');
 
     try {
       const response = await fetch(this.anonymisationEndpoint, {
@@ -107,6 +110,8 @@ export class ClaudeService {
         headers: {
           'Content-Type': 'application/octet-stream',
           'X-File-Type': image.type,
+          // THIS IS A TOTAL HACK CUZ I'M TOO LAZY TO SET UP BODY PARSING
+          'X-Text-Analysis': shortened_text_analysis,
         },
         body: image,
       });

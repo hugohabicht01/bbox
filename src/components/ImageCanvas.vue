@@ -105,21 +105,6 @@
           ></div>
         </label>
       </div>
-
-
-      <button
-        @click="anonymiseImage"
-        class="btn bg-rose-500 hover:bg-rose-600 text-white text-sm px-3 py-1 rounded-lg flex items-center gap-1 m-1"
-        :disabled="isAnonymising"
-        :class="{ 'opacity-70 cursor-not-allowed': isAnonymising }"
-      >
-        <div
-          v-if="isAnonymising"
-          class="i-carbon-circle-dash inline-block animate-spin"
-        ></div>
-        <span class="i-carbon-paint-brush inline-block"></span>
-        {{ isAnonymising ? "Anonymising..." : "Anonymise" }}
-      </button>
     </div>
     <p>{{ imagesStore.selectedImage?.file.name }}</p>
   </div>
@@ -127,10 +112,8 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted, onUnmounted } from "vue";
-import { ClaudeService } from "~/utils";
 import { useImagesStore } from "~/stores/images";
 import { useFindingsStore } from "~/stores/findings";
-import { useAnonymisedStore } from "~/stores/anonymised";
 
 import type { Finding, BboxType } from "~/utils/schemas";
 
@@ -158,37 +141,6 @@ const showBlur = ref(false); // Toggle for applying blur effect to bounding boxe
 
 const findingsStore = useFindingsStore();
 const imagesStore = useImagesStore();
-const anonymisedStore = useAnonymisedStore();
-
-const isAnonymising = ref(false)
-
-
-// anonymisation
-const claudeService = ClaudeService.getInstance();
-
-const anonymiseImage = async () => {
-  const currentImage = imagesStore.selectedImage;
-  if (!currentImage) {
-    alert("Please select an image first");
-    return;
-  }
-
-  try {
-    isAnonymising.value = true;
-
-    const anonymisedResponse = await claudeService.anonymiseImage(
-      currentImage.file,
-    );
-
-    anonymisedStore.setImage(anonymisedResponse.anonymized_image);
-  } catch (error) {
-    console.error("Error anonymising image:", error);
-    alert("Failed to anonymise image. Please try again later.");
-  } finally {
-    isAnonymising.value = false;
-  }
-};
-
 
 // --- RESIZE LOGIC (for existing boxes) ---
 const resizeState = reactive<ResizeState>({
