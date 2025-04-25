@@ -52,10 +52,6 @@ export default async function handler(
       console.error("mime type wasn't passed, defaulting to application/octet-stream");
     }
     const imageBlob = new Blob([blobBuffer], { type: mimeType ?? 'application/octet-stream' });
-    const imageHash = createHash('sha256');
-    imageHash.update(blobBuffer);
-    const imageSha256 = imageHash.digest('hex');
-    console.log('SHA256 hash of image blob:', imageSha256);
 
     // Connect to Gradio client
     console.log("Connecting to Gradio client...");

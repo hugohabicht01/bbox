@@ -52,13 +52,6 @@ export class ClaudeService {
     }
     this.analyzing = true;
 
-    // Compute SHA256 hash in the browser
-    const imageBuffer = await image.arrayBuffer();
-    const hashBuffer = await crypto.subtle.digest('SHA-256', imageBuffer);
-    const hashArray = Array.from(new Uint8Array(hashBuffer)); // Convert buffer to byte array
-    const imageSha256 = hashArray.map(b => b.toString(16).padStart(2, '0')).join(''); // Convert bytes to hex string
-    console.log('SHA256 hash of image:', imageSha256);
-
     try {
       const response = await fetch(this.apiEndpoint, {
         method: "POST",

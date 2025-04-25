@@ -5,7 +5,7 @@
       <!-- Main content -->
       <div class="flex-1">
         <h1 class="text-3xl font-bold mb-6 text-gray-800">
-          Image Annotation Tool
+          Image Anonymisation Tool
         </h1>
 
         <!-- Image upload section -->
