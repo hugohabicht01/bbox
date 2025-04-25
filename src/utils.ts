@@ -14,7 +14,7 @@ export function bboxEquals(bbox1: BboxType, bbox2: BboxType): boolean {
 // Claude API service with proxy approach for security
 export class ClaudeService {
   private static instance: ClaudeService;
-  private apiEndpoint: string = "/api/claude-analysis";
+  private apiEndpoint: string = "/api/qwen-analysis";
   private correctionEndpoint: string = "/api/claude-correct";
 
   private analyzing: boolean = false;
@@ -38,39 +38,45 @@ export class ClaudeService {
   }
 
   public async analyzeImage(
-    imageBase64: string,
-    imageMimetype: string,
-  ): Promise<string> {
+    image: File
+  ): Promise<{ analysis: string; anonymized_image?: any }> {
     if (this.analyzing) {
       throw new Error("Analysis already in progress.");
     }
     this.analyzing = true;
 
+    // Compute SHA256 hash in the browser
+    const imageBuffer = await image.arrayBuffer();
+    const hashBuffer = await crypto.subtle.digest('SHA-256', imageBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer)); // Convert buffer to byte array
+    const imageSha256 = hashArray.map(b => b.toString(16).padStart(2, '0')).join(''); // Convert bytes to hex string
+    console.log('SHA256 hash of image:', imageSha256);
+
     try {
       const response = await fetch(this.apiEndpoint, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/octet-stream',
+          'X-File-Type': image.type,
         },
-        body: JSON.stringify({
-          image_base64: imageBase64,
-          image_mimetype: imageMimetype,
-        }),
+        body: image,
       });
 
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(
-          `Claude API Error: ${response.status} ${response.statusText} - ${errorData.error}`,
+          `Qwen API Error: ${response.status} ${response.statusText} - ${errorData.error}`,
         );
       }
 
-      const data = await response.json();
+      const data: { analysis: string; anonymized_image?: any } = await response.json();
       // basic validation that we get the expected format
+      console.log("data received from vercel function:")
+      console.log(data)
       if (typeof data.analysis !== 'string' || !data.analysis.includes('<think>') || !data.analysis.includes('<output>')) {
           throw new Error('Invalid analysis format received from server.');
       }
-      return data.analysis;
+      return data;
     } catch (error) {
       console.error("Error during image analysis:", error);
       throw error; // Re-throw to allow caller handling

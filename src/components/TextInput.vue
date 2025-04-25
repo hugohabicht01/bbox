@@ -15,7 +15,7 @@
               class="i-carbon-circle-dash inline-block animate-spin"
             ></div>
             <span v-else class="i-carbon-bot inline-block"></span>
-            {{ isAnalyzing ? "Analyzing..." : "Analyze with Claude" }}
+            {{ isAnalyzing ? "Analyzing..." : "Analyze with Qwen" }}
           </button>
           <button
             @click="correctWithClaude"
@@ -226,18 +226,12 @@ const analyzeWithClaude = async () => {
 
   try {
     isAnalyzing.value = true;
-
-    // Get image data (it's already in base64 format from the URL)
-    const imageData = currentImage.url.split(",")[1]; // Remove data:image/jpeg;base64, prefix
-    // get the current mimetype from the data url
-    const mimeType = currentImage.url.split(";")[0].split(":")[1];
-
     // Call the Claude API through our proxy endpoint
     const analysisResponse = await claudeService.analyzeImage(
-      imageData,
-      mimeType,
+      currentImage.file,
     );
-    const parsed = parseTextForOneImage(analysisResponse);
+    // TODO: adjust for qwen
+    const parsed = parseTextForOneImage(analysisResponse.analysis);
     if (!parsed) {
       findingsStore.setThinkText(
         "Claude hallucinated bad output, sorry: " + analysisResponse,
