@@ -68,7 +68,8 @@ export default async function handler(
     const imageBlob = new Blob([fileBuffer], { type: uploadedFile.mimetype || undefined });
 
     // Get the text analysis from the parsed form data
-    const analysisText = fields.text_analysis as string;
+    const analysisText = fields.text_analysis as string[] | undefined
+    console.log(`analysisText: ${analysisText}`)
     if (!analysisText) {
       console.error("text analysis wasn't passed");
       return response.status(400).json({ error: "Text analysis missing" });
@@ -83,7 +84,7 @@ export default async function handler(
     console.log("Sending image to prediction endpoint...");
     const result = await client.predict("/perform_anonymisation", {
       input_image_pil: imageBlob,
-      raw_model_output: analysisText,
+      raw_model_output: analysisText[0],
     });
 
     if (!result.data || !Array.isArray(result.data)) {
