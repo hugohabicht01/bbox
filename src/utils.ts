@@ -16,7 +16,7 @@ export function bboxEquals(bbox1: BboxType, bbox2: BboxType): boolean {
 export class ClaudeService {
   private static instance: ClaudeService;
   private apiEndpoint: string = "/api/qwen-analysis";
-  private anonymisationEndpoint: string = "/api/anonymise"
+  private anonymisationEndpoint: string = "/api/anonymise";
   private correctionEndpoint: string = "/api/claude-correct";
 
   private analyzing: boolean = false;
@@ -119,7 +119,7 @@ export class ClaudeService {
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(
-          `Qwen API Error: ${response.status} ${response.statusText} - ${errorData.error}`,
+          `Space API Error: ${response.status} ${response.statusText} - ${errorData.error}`,
         );
       }
 
