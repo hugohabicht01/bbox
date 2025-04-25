@@ -25,14 +25,10 @@
           <p class="text-gray-500 text-center">or drag and drop images here</p>
         </div>
 
-        <!-- Render the image and bounding boxes -->
-        <div class="flex flex-row gap-4">
           <ImageCanvas
             :imageUrl="imagesStore.selectedImage?.url"
             v-if="imagesStore.selectedImage"
           />
-          <OutputCanvas />
-        </div>
 
         <TextInput />
 
@@ -59,6 +55,7 @@
             </div>
           </label>
         </div>
+        <OutputCanvas class="mt-20" />
       </div>
     </div>
   </div>
