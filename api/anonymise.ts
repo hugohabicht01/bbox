@@ -54,6 +54,7 @@ export default async function handler(
 
     // Get the image file from the parsed form data
     const imageFile = files.image;
+    console.log(imageFile)
     if (!imageFile) {
       return response.status(400).json({ error: "Image file missing" });
     }
@@ -73,7 +74,7 @@ export default async function handler(
     // Call the prediction endpoint
     console.log("Sending image to prediction endpoint...");
     const result = await client.predict("/perform_anonymisation", {
-      input_image_pil: imageFile,
+      input_image_pil: imageFile[0],
       raw_model_output: analysisText,
     });
 
