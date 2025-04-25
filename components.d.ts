@@ -12,8 +12,11 @@ declare module 'vue' {
     Footer: typeof import('./src/components/Footer.vue')['default']
     ImageCanvas: typeof import('./src/components/ImageCanvas.vue')['default']
     ImageList: typeof import('./src/components/ImageList.vue')['default']
+    OutputCanvas: typeof import('./src/components/OutputCanvas.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     TextInput: typeof import('./src/components/TextInput.vue')['default']
+    Toast: typeof import('./src/components/Toast.vue')['default']
+    ToastContainer: typeof import('./src/components/ToastContainer.vue')['default']
   }
 }

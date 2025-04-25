@@ -49,6 +49,12 @@ export default async function handler(
     if (!mimeType) {
       console.error("mime type wasn't passed, defaulting to application/octet-stream");
     }
+    const analysisText = request.headers['x-text-analysis'] as string | undefined;
+    if (!analysisText) {
+      console.error("text analysis wasn't passed");
+      return response.status(400).json({ error: "Text analysis missing" });
+    }
+
     const imageBlob = new Blob([blobBuffer], { type: mimeType ?? 'application/octet-stream' });
 
     // Connect to Gradio client
@@ -60,7 +66,9 @@ export default async function handler(
     console.log("Sending image to prediction endpoint...");
     const result = await client.predict("/perform_anonymisation", {
       input_image_pil: imageBlob,
+      raw_model_output: analysisText,
     });
+
     if (!result.data || !Array.isArray(result.data)) {
       return response.status(400).json({ error: "Error during inference" });
     }
