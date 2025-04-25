@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { Client } from "@gradio/client";
-import { IncomingForm, Fields, Files } from 'formidable';
+import { IncomingForm, Fields, Files, File } from 'formidable';
+import { promises as fs } from 'fs';
 
 // This code is running in a nodejs runtime in a vercel function on node 22
 
@@ -53,11 +54,18 @@ export default async function handler(
     });
 
     // Get the image file from the parsed form data
-    const imageFile = files.image;
-    console.log(imageFile)
-    if (!imageFile) {
+    const imageFiles = files.image as File[] | undefined;
+    if (!imageFiles || imageFiles.length === 0) {
       return response.status(400).json({ error: "Image file missing" });
     }
+
+    const uploadedFile = imageFiles[0];
+    console.log(`mimetype: ${uploadedFile.mimetype}`)
+    // Read the file content from the temporary path
+    const fileBuffer = await fs.readFile(uploadedFile.filepath);
+
+    // Create a Blob from the file buffer and original mime type
+    const imageBlob = new Blob([fileBuffer], { type: uploadedFile.mimetype || undefined });
 
     // Get the text analysis from the parsed form data
     const analysisText = fields.text_analysis as string;
@@ -74,7 +82,7 @@ export default async function handler(
     // Call the prediction endpoint
     console.log("Sending image to prediction endpoint...");
     const result = await client.predict("/perform_anonymisation", {
-      input_image_pil: imageFile[0],
+      input_image_pil: imageBlob,
       raw_model_output: analysisText,
     });
 
