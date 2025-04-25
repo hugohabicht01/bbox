@@ -51,7 +51,10 @@ export function customFindingsStringify(
 export function formatInternalReprForExport(internalRepr: InternalRepr): string {
   if (!internalRepr.output) return ""; // Or handle as error
 
-  const cleanedOutput = internalRepr.output.map(findingToBasicFinding);
+  const cleanedOutput = internalRepr.output
+  .map(findingToBasicFinding)
+  .map(each => ({...each, bounding_box: each.bounding_box.map(coord => Math.round(coord)) as [number, number, number, number]}));
+
   const formattedOutput = customFindingsStringify(cleanedOutput);
 
   // Using a helper or simply concatenating
