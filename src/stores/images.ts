@@ -201,6 +201,7 @@ export const useImagesStore = defineStore("images", () => {
     loadJSON, 
     exportAllFindings,
     backup,
+    loadImage,
     $reset,
   };
 });

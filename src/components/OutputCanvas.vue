@@ -1,5 +1,5 @@
 <template>
-  <div class="mb-6 relative inline-block">
+  <div class="mb-6 relative inline-block" v-if="anonymised.imageUrl">
     <img
       :src="anonymised.imageUrl"
       ref="imageRef"
