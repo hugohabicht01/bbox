@@ -16,10 +16,12 @@ export function bboxEquals(bbox1: BboxType, bbox2: BboxType): boolean {
 export class ClaudeService {
   private static instance: ClaudeService;
   private apiEndpoint: string = "/api/qwen-analysis";
+  private anonymisationEndpoint: string = "/api/anonymise"
   private correctionEndpoint: string = "/api/claude-correct";
 
   private analyzing: boolean = false;
   private correcting: boolean = false;
+  private anonymising: boolean = false;
 
   private constructor() {}
 
@@ -36,6 +38,10 @@ export class ClaudeService {
 
   public isCorrecting(): boolean {
     return this.correcting;
+  }
+
+  public isAnonymising(): boolean {
+    return this.anonymising;
   }
 
   public async analyzeImage(
@@ -85,6 +91,46 @@ export class ClaudeService {
       this.analyzing = false;
     }
   }
+
+
+  public async anonymiseImage(
+    image: File
+  ): Promise<{  anonymized_image: ImageMetaData }> {
+    if (this.anonymising) {
+      throw new Error("Anonymisation already in progress.");
+    }
+    this.anonymising = true;
+
+    try {
+      const response = await fetch(this.anonymisationEndpoint, {
+        method: "POST",
+        headers: {
+          'Content-Type': 'application/octet-stream',
+          'X-File-Type': image.type,
+        },
+        body: image,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(
+          `Qwen API Error: ${response.status} ${response.statusText} - ${errorData.error}`,
+        );
+      }
+
+      const data: { anonymized_image: ImageMetaData } = await response.json();
+      // basic validation that we get the expected format
+      console.log("data received from vercel function:")
+      console.log(data)
+      return data;
+    } catch (error) {
+      console.error("Error during image anonymisation:", error);
+      throw error; // Re-throw to allow caller handling
+    } finally {
+      this.anonymising = false;
+    }
+  }
+
 
   public async correctAnalysis(
     imageBase64: string,
