@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { Client } from "@gradio/client";
-import formidable, { Fields, Files } from "formidable";
+import { IncomingForm, Fields, Files } from 'formidable';
 
 // This code is running in a nodejs runtime in a vercel function on node 22
 
@@ -44,7 +44,7 @@ export default async function handler(
   try {
 
     // Parse the multipart form data using formidable
-    const form = new formidable.IncomingForm();
+    const form = new IncomingForm();
     const { fields, files } = await new Promise<{ fields: Fields; files: Files }>((resolve, reject) => {
       form.parse(request, (err: any, fields: Fields, files: Files) => {
         if (err) reject(err);
