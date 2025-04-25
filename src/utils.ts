@@ -1,3 +1,4 @@
+import type { ImageMetaData } from "api/qwen-analysis";
 import type { BboxType } from "./utils/schemas";
 
 export function bboxEquals(bbox1: BboxType, bbox2: BboxType): boolean {
@@ -39,7 +40,7 @@ export class ClaudeService {
 
   public async analyzeImage(
     image: File
-  ): Promise<{ analysis: string; anonymized_image?: any }> {
+  ): Promise<{ analysis: string; anonymized_image?: ImageMetaData }> {
     if (this.analyzing) {
       throw new Error("Analysis already in progress.");
     }

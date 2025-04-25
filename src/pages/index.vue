@@ -26,11 +26,13 @@
         </div>
 
         <!-- Render the image and bounding boxes -->
-        <ImageCanvas
-          :imageUrl="imagesStore.selectedImage?.url"
-          v-if="imagesStore.selectedImage"
-        />
-        <p>{{ imagesStore.selectedImage?.file.name }}</p>
+        <div class="flex flex-row gap-4">
+          <ImageCanvas
+            :imageUrl="imagesStore.selectedImage?.url"
+            v-if="imagesStore.selectedImage"
+          />
+          <OutputCanvas />
+        </div>
 
         <TextInput />
 

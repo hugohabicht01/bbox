@@ -106,12 +106,15 @@
         </label>
       </div>
     </div>
+    <p>{{ imagesStore.selectedImage?.file.name }}</p>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, onMounted, onUnmounted } from "vue";
+import { useImagesStore } from "~/stores/images";
 import { useFindingsStore } from "~/stores/findings";
+
 import type { Finding, BboxType } from "~/utils/schemas";
 
 type ResizeHandle = "n" | "s" | "e" | "w" | "nw" | "ne" | "se" | "sw";
@@ -137,6 +140,7 @@ const showLabels = ref(true); // Toggle for showing/hiding labels
 const showBlur = ref(false); // Toggle for applying blur effect to bounding boxes
 
 const findingsStore = useFindingsStore();
+const imagesStore = useImagesStore();
 
 // --- RESIZE LOGIC (for existing boxes) ---
 const resizeState = reactive<ResizeState>({

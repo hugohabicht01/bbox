@@ -96,6 +96,7 @@ import { formatInternalReprForExport, basicToNormalized } from "~/utils/formatti
 import { ClaudeService } from "~/utils"; // Assuming ClaudeService remains here for now
 
 import { useFindingsStore } from "~/stores/findings";
+import { useAnonymisedStore } from "~/stores/anonymised";
 import { useImagesStore } from "~/stores/images";
 import FindingDisplay from "~/components/FindingDisplay.vue";
 
@@ -107,6 +108,7 @@ const clipboardActionText = ref("Copied!");
 
 const findingsStore = useFindingsStore();
 const imageStore = useImagesStore();
+const anonymisedStore = useAnonymisedStore();
 const claudeService = ClaudeService.getInstance();
 
 const clearAllLabels = () => {
@@ -230,6 +232,8 @@ const analyzeWithClaude = async () => {
     const analysisResponse = await claudeService.analyzeImage(
       currentImage.file,
     );
+
+    anonymisedStore.setImage(analysisResponse.anonymized_image);
     // TODO: adjust for qwen
     const parsed = parseTextForOneImage(analysisResponse.analysis);
     if (!parsed) {
