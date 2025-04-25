@@ -42,13 +42,25 @@ export const useFindingsStore = defineStore("findings", () => {
   }
 
   function addBox(bbox: BboxType): string {
-    const placeholderFinding: BasicFinding = {
+    // prefill some data to make life easier
+    let placeholderFinding: BasicFinding = {
       label: "New Finding",
       severity: 5,
       description: "Bounding box added.",
       explanation: "Explanation pending.",
       bounding_box: bbox,
     };
+
+    if (findings.value.length > 0)  {
+      const last = findings.value[findings.value.length - 1];
+      placeholderFinding = {
+        label: last.label,
+        severity: last.severity,
+        description: last.description,
+        explanation: last.explanation,
+        bounding_box: bbox,
+      };
+    }
     return addFinding(placeholderFinding);
   }
 
