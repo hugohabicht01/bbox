@@ -14,12 +14,12 @@ export const config = {
 const HF_TOKEN = process.env.HF_TOKEN;
 
 
-type ImageMetaData = {
+export type ImageMetaData = {
     path: string;
     url: string;
     size: null;
     orig_name: string;
-    mime_type: null;
+    mime_type: string | null;
     is_stream: boolean;
     meta: {
       _type: "gradio.FileData";

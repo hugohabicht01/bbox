@@ -26,35 +26,37 @@ import { useAnonymisedStore } from "~/stores/anonymised";
 const imageRef = ref<HTMLImageElement | null>(null);
 const anonymised = useAnonymisedStore();
 
-// Function to download the anonymised image
-const downloadImage = () => {
-  if (!imageRef.value) return;
-  
-  // Create a canvas element to draw the image
-  const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d');
-  
-  // Set canvas dimensions to match the image
-  canvas.width = imageRef.value.naturalWidth;
-  canvas.height = imageRef.value.naturalHeight;
-  
-  // Draw the image onto the canvas
-  if (ctx) {
-    ctx.drawImage(imageRef.value, 0, 0);
-    
-    // Convert canvas to data URL
-    const dataUrl = canvas.toDataURL('image/png');
-    
-    // Create a temporary link element
+async function downloadImage() {
+  const url = anonymised.imageUrl
+  try {
+    const response = await fetch(url, { mode: 'cors' });
+
+    if (!response.ok) {
+      throw new Error('Network response was not ok');
+    }
+
+    const blob = await response.blob();
+    const blobUrl = URL.createObjectURL(blob);
+
     const link = document.createElement('a');
-    link.href = dataUrl;
-    link.download = 'anonymised-image.png';
-    
-    // Trigger download
+    link.href = blobUrl;
+    // Generate filename based on the actual filetype
+    const mimeType = blob.type;
+    let fileExtension = mimeType.split('/')[1] || 'jpg';
+    // Remove everything after the + sign if present (e.g., svg+xml -> svg)
+    fileExtension = fileExtension.split('+')[0];
+
+    link.download = `anonymised-image.${fileExtension}`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-  }
-};
 
+    URL.revokeObjectURL(blobUrl);
+  } catch (error) {
+    console.error('Fetch failed, opening image in a new tab instead.', error);
+
+    // Fallback: open the image in a new tab for manual download
+    window.open(url, '_blank');
+  }
+}
 </script>
