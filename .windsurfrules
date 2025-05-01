@@ -6,6 +6,7 @@
 - State is managed via pinia, in two different pinia stores, finding.ts and images.ts. Both of them are directly related to each other
 - The webapp is built exclusively for desktop use, mobile use is not supported
 - Efficent usage via keyboard inputs is key, good UX is crucial, as this app is used to manually analyse a lot of data
+- Functional style programming is preferred, as well as errors as values instead of exceptions
 
 # Purpose of the project
 - This project is a custom webapp for labelling images for machine learning datasets with focus on bounding box labelling
@@ -68,7 +69,7 @@ Each bounding box is in the Pascal VOC format, with each number in the array cor
 
 ## Explanation of the current setup
 - The current setup lets the user load images, which are then stored in the imagesStore (`src/stores/images.ts`).
-- All images are kept track of in the `images: ref<ImageItem[]>` vue ref. 
+- All images are kept track of in the `images: ref<ImageItem[]>` vue ref.
 - The currently selected image is tracked by `selectedImageIndex`, with a computed property `selectedImage` for easy access.
 - Images can be navigated (`nextImage`, `previousImage`), selected (`selectImage`), or deleted (`deleteImage`).
 
@@ -95,7 +96,6 @@ export const internalReprSchema = z.object({
 Additionally, the whole text based annotation is split into two parts, the `<think>` text and the `<output>` JSON. The think text is just stored and used a normal string, while the output section (a list of bounding box objects) is being worked on as normal objects, with internalRepr type
 
 In the UI, the think text is shown in a simple textarea, whilst the list of bounding boxes is displayed both in a custom UI and as drawn bounding boxes, drawn over the image.
-
 
 ## Stores
 The findings store is used to hold and manipulate the findings (bounding boxes + text) for the current image, whilst the images stores keeps track of all images and saves their findings. When the user navigates to a new image, the findings store is saved in the image store and the new image's findings are loaded.
