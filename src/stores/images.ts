@@ -1,8 +1,12 @@
 import { acceptHMRUpdate, defineStore } from "pinia";
 import { ref, computed } from "vue";
 import { useFindingsStore } from "./findings";
-import type { InternalRepr } from "~/utils/schemas"; 
-import { parseAndMigrateJsonInput, exportAllFindingsToJson } from "~/services/importExportService"; 
+import type { InternalRepr } from "~/utils/schemas";
+import {
+  parseAndMigrateJsonInput,
+  exportAllFindingsToJson,
+} from "~/services/importExportService";
+import { useAnonymisedStore } from "~/stores/anonymised";
 
 export interface ImageItem {
   url: string;
@@ -22,23 +26,25 @@ const createEmptyInternalRepr = (): InternalRepr => ({ think: "", output: [] });
 
 export const useImagesStore = defineStore("images", () => {
   const findingsStore = useFindingsStore();
+  const anonymisedStore = useAnonymisedStore();
 
   const images = ref<ImageItem[]>([]);
   const selectedImageIndex = ref<number>(-1);
   const allLabels = ref<{ [key: string]: InternalRepr }>({});
 
   const selectedImage = computed<ImageItem | null>(() =>
-    selectedImageIndex.value >= 0 && selectedImageIndex.value < images.value.length
+    selectedImageIndex.value >= 0 &&
+    selectedImageIndex.value < images.value.length
       ? images.value[selectedImageIndex.value]
       : null,
   );
 
   const selectedImageKey = computed<string | null>(() => {
-     return selectedImage.value ? selectedImage.value.file.name : null;
+    return selectedImage.value ? selectedImage.value.file.name : null;
   });
 
   const sortedImages = computed(() => {
-    return naturalSortFilenames([...images.value]); 
+    return naturalSortFilenames([...images.value]);
   });
 
   function saveCurrentFindingsToMap() {
@@ -59,18 +65,24 @@ export const useImagesStore = defineStore("images", () => {
   function selectImage(index: number): void {
     if (index < 0 || index >= images.value.length) {
       console.warn(`Attempted to select invalid image index: ${index}`);
-      return; 
+      return;
     }
 
     if (selectedImageIndex.value !== -1) {
-       saveCurrentFindingsToMap();
+      saveCurrentFindingsToMap();
+    }
+
+    if (index === selectedImageIndex.value) {
+      return;
     }
 
     selectedImageIndex.value = index;
 
     loadFindingsFromMap(selectedImageKey.value);
-  }
 
+    // clear the anonymised image
+    anonymisedStore.clearImage();
+  }
 
   function nextImage() {
     if (images.value.length === 0) return;
@@ -81,37 +93,37 @@ export const useImagesStore = defineStore("images", () => {
   function previousImage() {
     if (images.value.length === 0) return;
     const prevIndex =
-      (selectedImageIndex.value - 1 + images.value.length) % images.value.length;
+      (selectedImageIndex.value - 1 + images.value.length) %
+      images.value.length;
     selectImage(prevIndex);
   }
 
   function loadImage(file: File): void {
-     if (!file.type.startsWith("image/")) {
-         console.error("Invalid file type. Please upload an image.");
-         return;
-     }
-     const imageUrl = URL.createObjectURL(file);
-     const newImage: ImageItem = { url: imageUrl, file: file };
-     images.value.push(newImage);
+    if (!file.type.startsWith("image/")) {
+      console.error("Invalid file type. Please upload an image.");
+      return;
+    }
+    const imageUrl = URL.createObjectURL(file);
+    const newImage: ImageItem = { url: imageUrl, file: file };
+    images.value.push(newImage);
 
-     if (!allLabels.value[file.name]) {
-         allLabels.value[file.name] = createEmptyInternalRepr();
-     }
+    if (!allLabels.value[file.name]) {
+      allLabels.value[file.name] = createEmptyInternalRepr();
+    }
 
-     if (images.value.length === 1) {
-         selectImage(0);
-     }
+    if (images.value.length === 1) {
+      selectImage(0);
+    }
   }
 
   function addImages(files: FileList | null): void {
-     if (!files) return;
-     for (let i = 0; i < files.length; i++) {
-         const file = files[i];
-         if (!file) continue; // Should not happen with FileList, but good practice
-         loadImage(file);
-     }
+    if (!files) return;
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      if (!file) continue; // Should not happen with FileList, but good practice
+      loadImage(file);
+    }
   }
-
 
   function deleteImage(index: number): void {
     if (index < 0 || index >= images.value.length) return;
@@ -126,67 +138,63 @@ export const useImagesStore = defineStore("images", () => {
 
     if (images.value.length === 0) {
       selectedImageIndex.value = -1;
-      loadFindingsFromMap(null); 
+      loadFindingsFromMap(null);
     } else if (selectedImageIndex.value === index) {
       const newIndex = Math.max(0, index - 1);
       selectImage(newIndex);
     } else if (selectedImageIndex.value > index) {
-       selectedImageIndex.value--;
+      selectedImageIndex.value--;
     }
   }
 
   function deleteAllImages() {
-      images.value.forEach(img => URL.revokeObjectURL(img.url));
-      images.value = [];
-      allLabels.value = {};
-      selectedImageIndex.value = -1;
-      loadFindingsFromMap(null); 
+    images.value.forEach((img) => URL.revokeObjectURL(img.url));
+    images.value = [];
+    allLabels.value = {};
+    selectedImageIndex.value = -1;
+    loadFindingsFromMap(null);
   }
-
 
   function loadJSON(jsonString: string): string[] {
-     try {
-        const { migratedData, errors } = parseAndMigrateJsonInput(jsonString);
+    try {
+      const { migratedData, errors } = parseAndMigrateJsonInput(jsonString);
 
-        allLabels.value = { ...allLabels.value, ...migratedData };
+      allLabels.value = { ...allLabels.value, ...migratedData };
 
-        if (selectedImageKey.value && migratedData[selectedImageKey.value]) {
-           loadFindingsFromMap(selectedImageKey.value);
-        } else if (selectedImageIndex.value === -1 && images.value.length > 0) {
-            selectImage(0);
-        }
+      if (selectedImageKey.value && migratedData[selectedImageKey.value]) {
+        loadFindingsFromMap(selectedImageKey.value);
+      } else if (selectedImageIndex.value === -1 && images.value.length > 0) {
+        selectImage(0);
+      }
 
-        if (errors.length > 0) {
-            console.warn("Errors encountered during JSON import:", errors);
-        }
-        return errors; 
-
-     } catch (error: any) {
-        console.error("Critical error loading JSON:", error);
-        return [`Critical error: ${error.message}`]; 
-     }
+      if (errors.length > 0) {
+        console.warn("Errors encountered during JSON import:", errors);
+      }
+      return errors;
+    } catch (error: any) {
+      console.error("Critical error loading JSON:", error);
+      return [`Critical error: ${error.message}`];
+    }
   }
 
-
   function exportAllFindings(): string {
-     saveCurrentFindingsToMap();
-     return exportAllFindingsToJson(allLabels.value);
+    saveCurrentFindingsToMap();
+    return exportAllFindingsToJson(allLabels.value);
   }
 
   function backup() {
-      const jsonBackup = exportAllFindings();
-      console.log("Backup created (implement download):", jsonBackup);
+    const jsonBackup = exportAllFindings();
+    console.log("Backup created (implement download):", jsonBackup);
   }
 
-
   function $reset() {
-    deleteAllImages(); 
+    deleteAllImages();
   }
 
   return {
-    images, 
-    selectedImageIndex, 
-    allLabels, 
+    images,
+    selectedImageIndex,
+    allLabels,
 
     selectedImage,
     selectedImageKey,
@@ -195,10 +203,10 @@ export const useImagesStore = defineStore("images", () => {
     selectImage,
     nextImage,
     previousImage,
-    addImages, 
+    addImages,
     deleteImage,
     deleteAllImages,
-    loadJSON, 
+    loadJSON,
     exportAllFindings,
     backup,
     loadImage,

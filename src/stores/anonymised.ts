@@ -5,9 +5,13 @@ import { ref } from "vue";
 export const useAnonymisedStore = defineStore("anonymised", () => {
   const imageUrl = ref<string | null>(null);
 
-  const setImage = (imageMetaData : ImageMetaData) => {
-    const {url} = imageMetaData
+  const setImage = (imageMetaData: ImageMetaData) => {
+    const { url } = imageMetaData;
     imageUrl.value = url;
+  };
+
+  const clearImage = () => {
+    imageUrl.value = null;
   };
 
   function $reset() {
@@ -17,6 +21,7 @@ export const useAnonymisedStore = defineStore("anonymised", () => {
   return {
     imageUrl,
     setImage,
+    clearImage,
     $reset,
   };
 });
