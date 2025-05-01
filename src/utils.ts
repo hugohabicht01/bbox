@@ -17,10 +17,8 @@ export class ClaudeService {
   private static instance: ClaudeService;
   private apiEndpoint: string = "/api/qwen-analysis";
   private anonymisationEndpoint: string = "/api/anonymise";
-  private correctionEndpoint: string = "/api/claude-correct";
 
   private analyzing: boolean = false;
-  private correcting: boolean = false;
   private anonymising: boolean = false;
 
   private constructor() {}
@@ -34,10 +32,6 @@ export class ClaudeService {
 
   public isAnalyzing(): boolean {
     return this.analyzing;
-  }
-
-  public isCorrecting(): boolean {
-    return this.correcting;
   }
 
   public isAnonymising(): boolean {
@@ -125,51 +119,6 @@ export class ClaudeService {
       throw error; // Re-throw to allow caller handling
     } finally {
       this.anonymising = false;
-    }
-  }
-
-
-  public async correctAnalysis(
-    imageBase64: string,
-    imageMimetype: string,
-    analysis: string,
-  ): Promise<string> {
-    if (this.correcting) {
-      throw new Error("Correction already in progress.");
-    }
-    this.correcting = true;
-
-    try {
-      const response = await fetch(this.correctionEndpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          image_base64: imageBase64,
-          image_mimetype: imageMimetype,
-          analysis: analysis,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(
-          `Claude Correction API Error: ${response.status} ${response.statusText} - ${errorData.error}`,
-        );
-      }
-
-      const data = await response.json();
-       // basic validation that we get the expected format
-      if (typeof data.corrected_analysis !== 'string' || !data.corrected_analysis.includes('<think>') || !data.corrected_analysis.includes('<output>')) {
-          throw new Error('Invalid corrected analysis format received from server.');
-      }
-      return data.corrected_analysis;
-    } catch (error) {
-      console.error("Error during analysis correction:", error);
-      throw error; // Re-throw to allow caller handling
-    } finally {
-      this.correcting = false;
     }
   }
 }

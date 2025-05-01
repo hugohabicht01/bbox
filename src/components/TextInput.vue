@@ -18,19 +18,19 @@
             {{ isAnalyzing ? "Analyzing..." : "Analyze with Qwen" }}
           </button>
 
-      <button
-        @click="anonymiseImage"
-        class="btn bg-rose-500 hover:bg-rose-600 text-white text-sm px-3 py-1 rounded-lg flex items-center gap-1 m-1"
-        :disabled="isAnonymising"
-        :class="{ 'opacity-70 cursor-not-allowed': isAnonymising }"
-      >
-        <div
-          v-if="isAnonymising"
-          class="i-carbon-circle-dash inline-block animate-spin"
-        ></div>
-        <span class="i-carbon-paint-brush inline-block"></span>
-        {{ isAnonymising ? "Anonymising..." : "Anonymise" }}
-      </button>
+          <button
+            @click="anonymiseImage"
+            class="btn bg-rose-500 hover:bg-rose-600 text-white text-sm px-3 py-1 rounded-lg flex items-center gap-1 m-1"
+            :disabled="isAnonymising"
+            :class="{ 'opacity-70 cursor-not-allowed': isAnonymising }"
+          >
+            <div
+              v-if="isAnonymising"
+              class="i-carbon-circle-dash inline-block animate-spin"
+            ></div>
+            <span class="i-carbon-paint-brush inline-block"></span>
+            {{ isAnonymising ? "Anonymising..." : "Anonymise" }}
+          </button>
         </div>
         <textarea
           v-model="thinkText"
@@ -93,7 +93,10 @@ import { ref, watch } from "vue";
 import type { Finding } from "~/utils/schemas";
 import { basicFindingListSchema } from "~/utils/schemas";
 import { getSection, safeParseJSON } from "~/utils/parsers";
-import { formatInternalReprForExport, basicToNormalized } from "~/utils/formatting";
+import {
+  formatInternalReprForExport,
+  basicToNormalized,
+} from "~/utils/formatting";
 import { ClaudeService } from "~/utils";
 
 import { useFindingsStore } from "~/stores/findings";
@@ -103,7 +106,7 @@ import FindingDisplay from "~/components/FindingDisplay.vue";
 
 const thinkText = ref("");
 const isAnalyzing = ref(false);
-const isAnonymising = ref(false)
+const isAnonymising = ref(false);
 const copied = ref(false);
 const clipboardActionText = ref("Copied!");
 
@@ -111,7 +114,6 @@ const findingsStore = useFindingsStore();
 const imageStore = useImagesStore();
 const anonymisedStore = useAnonymisedStore();
 const claudeService = ClaudeService.getInstance();
-
 
 const anonymiseImage = async () => {
   const currentImage = imageStore.selectedImage;
@@ -125,12 +127,12 @@ const anonymiseImage = async () => {
 
     const currentFindings = findingsStore.getFindings;
     const formattedOutput = formatInternalReprForExport(currentFindings);
-    console.log("formatted output:")
-    console.log(formattedOutput)
+    console.log("formatted output:");
+    console.log(formattedOutput);
 
     const anonymisedResponse = await claudeService.anonymiseImage(
       currentImage.file,
-      formattedOutput
+      formattedOutput,
     );
 
     anonymisedStore.setImage(anonymisedResponse.anonymized_image);
@@ -264,7 +266,14 @@ const analyzeWithClaude = async () => {
       currentImage.file,
     );
 
-    anonymisedStore.setImage(analysisResponse.anonymized_image);
+    if (analysisResponse.anonymized_image) {
+      anonymisedStore.setImage(analysisResponse.anonymized_image);
+    } else {
+      // Handle the case when no anonymized image is returned
+      // For example, show a message to the user or take some other action
+      alert("No anonymized image returned");
+      anonymisedStore.clearImage();
+    }
     // TODO: adjust for qwen
     const parsed = parseTextForOneImage(analysisResponse.analysis);
     if (!parsed) {
@@ -291,59 +300,6 @@ const analyzeWithClaude = async () => {
     alert("Failed to analyze image. Please try again later.");
   } finally {
     isAnalyzing.value = false;
-  }
-};
-
-const correctWithClaude = async () => {
-  const currentImage = imageStore.selectedImage;
-  if (!currentImage) {
-    alert("Please select an image first");
-    return;
-  }
-
-  try {
-    isCorrecting.value = true;
-
-    // Get image data (it's already in base64 format from the URL)
-    const imageData = currentImage.url.split(",")[1]; // Remove data:image/jpeg;base64, prefix
-    // get the current mimetype from the data url
-    const mimeType = currentImage.url.split(";")[0].split(":")[1];
-
-    const currentFindings = findingsStore.getFindings;
-    const analysis = formatInternalReprForExport(currentFindings);
-    if (!analysis) {
-      alert("Nothing to correct yet");
-      return;
-    }
-    // Call the Claude API through our proxy endpoint
-    const analysisResponse = await claudeService.correctAnalysis(
-      imageData,
-      mimeType,
-      analysis,
-    );
-    const parsed = parseTextForOneImage(analysisResponse);
-    if (!parsed) {
-      alert("Something went wrong while correcting");
-      return;
-    } else {
-      // Convert BasicFinding[] to Finding[] (InternalRepr's 'output' part) and update store
-      const normalizedFindings = basicToNormalized(parsed.output);
-      findingsStore.setFindings({
-        think: parsed.think,
-        output: normalizedFindings,
-      });
-
-      clipboardActionText.value = "Correction completed!";
-      copied.value = true;
-      setTimeout(() => {
-        copied.value = false;
-      }, 500);
-    }
-  } catch (error) {
-    console.error("Error analyzing image:", error);
-    alert("Failed to analyze image. Please try again later.");
-  } finally {
-    isCorrecting.value = false;
   }
 };
 </script>
