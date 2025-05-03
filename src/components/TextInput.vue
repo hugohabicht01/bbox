@@ -1,86 +1,82 @@
 <template>
   <div class="py-4 text-black">
-    <div class="grid grid-cols-2 gap-4">
+    <div class="mainboxes gap-4">
       <!-- Think Section -->
-      <div class="h-40vh">
-        <div class="flex justify-between items-center mb-3">
-          <h2 class="text-lg font-semibold text-gray-700">Thinking</h2>
-          <div class="flex items-center space-x-2">
-            <button
-              @click="analyzeWithQwen"
-              class="btn bg-purple-500 hover:bg-purple-600 text-white text-sm px-3 py-1 rounded-lg flex items-center gap-1 m-1"
-              :disabled="isAnalyzing"
-              :class="{ 'opacity-70 cursor-not-allowed': isAnalyzing }"
-              title="Analyze current image with Qwen"
-            >
-              <div
-                v-if="isAnalyzing"
-                class="i-carbon-circle-dash inline-block animate-spin"
-              ></div>
-              <span v-else class="i-carbon-bot inline-block"></span>
-              {{ isAnalyzing ? "Analyzing..." : "Analyze with Qwen" }}
-            </button>
-            <button
-              @click="anonymiseImage"
-              class="btn bg-rose-500 hover:bg-rose-600 text-white text-sm px-3 py-1 rounded-lg flex items-center gap-1 m-1"
-              :disabled="isAnonymising"
-              :class="{ 'opacity-70 cursor-not-allowed': isAnonymising }"
-              title="Anonymise current image (requires Qwen analysis first or manual labels)"
-            >
-              <div
-                v-if="isAnonymising"
-                class="i-carbon-circle-dash inline-block animate-spin"
-              ></div>
-              <span class="i-carbon-paint-brush inline-block"></span>
-              {{ isAnonymising ? "Anonymising..." : "Anonymise" }}
-            </button>
-          </div>
+      <div class="thinkheading flex justify-between items-center mb-3">
+        <h2 class="text-lg font-semibold text-gray-700">Thinking</h2>
+        <div class="flex items-center space-x-2">
+          <button
+            @click="analyzeWithQwen"
+            class="btn bg-purple-500 hover:bg-purple-600 text-white text-sm px-3 py-1 rounded-lg flex items-center gap-1 m-1"
+            :disabled="isAnalyzing"
+            :class="{ 'opacity-70 cursor-not-allowed': isAnalyzing }"
+            title="Analyze current image with Qwen"
+          >
+            <div
+              v-if="isAnalyzing"
+              class="i-carbon-circle-dash inline-block animate-spin"
+            ></div>
+            <span v-else class="i-carbon-bot inline-block"></span>
+            {{ isAnalyzing ? "Analyzing..." : "Analyze with Qwen" }}
+          </button>
+          <button
+            @click="anonymiseImage"
+            class="btn bg-rose-500 hover:bg-rose-600 text-white text-sm px-3 py-1 rounded-lg flex items-center gap-1 m-1"
+            :disabled="isAnonymising"
+            :class="{ 'opacity-70 cursor-not-allowed': isAnonymising }"
+            title="Anonymise current image (requires Qwen analysis first or manual labels)"
+          >
+            <div
+              v-if="isAnonymising"
+              class="i-carbon-circle-dash inline-block animate-spin"
+            ></div>
+            <span class="i-carbon-paint-brush inline-block"></span>
+            {{ isAnonymising ? "Anonymising..." : "Anonymise" }}
+          </button>
         </div>
-        <textarea
-          v-model="localThinkText"
-          @input="updateThinkStore"
-          class="rounded-lg border border-gray-200 shadow-lg h-34vh p-4 w-full font-mono text-sm"
-          placeholder="Enter thinking notes here..."
-          :disabled="isAnalyzing"
+      </div>
+      <textarea
+        v-model="localThinkText"
+        @input="updateThinkStore"
+        class="thinkcontent rounded-lg border border-gray-200 shadow-lg h-40vh p-4 w-full font-mono text-sm"
+        placeholder="Enter thinking notes here..."
+        :disabled="isAnalyzing"
+      />
+
+      <h2 class="outputheading font-semibold mb-3 text-gray-700">Boxes</h2>
+      <div
+        class="outputcontent overflow-y-auto h-40vh p-2 custom-scrollbar rounded-lg border border-gray-200"
+      >
+        <div
+          v-if="findingsStore.findings.length === 0"
+          class="text-gray-500 italic text-sm"
+        >
+          No findings to display. Add bounding boxes to the image or edit the
+          Output JSON.
+        </div>
+        <FindingDisplay
+          v-for="finding in findingsStore.findings"
+          :key="finding.id"
+          :finding="finding"
+          @update:finding="updateFinding"
+          @delete="handleDeleteFinding"
         />
       </div>
 
       <!-- Output/Findings Section -->
-      <div class="h-40vh flex flex-col">
-        <h2 class="text-lg font-semibold mb-3 text-gray-700">Output (JSON)</h2>
-        <textarea
-          v-model="localOutputText"
-          @blur="updateOutputStore"
-          class="rounded-lg border border-gray-200 shadow-lg flex-grow p-4 w-full font-mono text-sm"
-          :class="{ 'border-red-500': outputError }"
-        />
-        <p v-if="outputError" class="text-red-600 text-xs mt-1">
-          {{ outputError }}
-        </p>
-      </div>
     </div>
 
-    <!-- Findings List Display -->
-    <div
-      class="findings-list overflow-y-auto h-40vh pr-2 custom-scrollbar mt-4 border-t pt-4"
-    >
-      <h2 class="text-lg font-semibold mb-3 text-gray-700">
-        Findings (Editable List)
-      </h2>
-      <div
-        v-if="findingsStore.findings.length === 0"
-        class="text-gray-500 italic text-sm"
-      >
-        No findings to display. Add bounding boxes to the image or edit the
-        Output JSON.
-      </div>
-      <FindingDisplay
-        v-for="finding in findingsStore.findings"
-        :key="finding.id"
-        :finding="finding"
-        @update:finding="updateFinding"
-        @delete="handleDeleteFinding"
+    <div class="border-t border-gray-200 mt-8">
+      <h2 class="outputheading font-semibold my-3 text-gray-700">raw JSON</h2>
+      <textarea
+        v-model="localOutputText"
+        @blur="updateOutputStore"
+        class="outputcontent rounded-lg border border-gray-200 shadow-lg flex-grow p-4 w-full font-mono text-sm"
+        :class="{ 'border-red-500': outputError }"
       />
+      <p v-if="outputError" class="errormsg text-red-600 text-xs mt-1">
+        {{ outputError }}
+      </p>
     </div>
 
     <!-- Action Buttons -->
@@ -424,5 +420,34 @@ textarea.font-mono {
   font-family:
     ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
     "Courier New", monospace;
+}
+
+.mainboxes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: min-content 1fr;
+  grid-template-areas:
+    "thinkheading outputheading"
+    "thinkcontent outputcontent";
+}
+
+.thinkheading {
+  grid-area: thinkheading;
+}
+
+.outputheading {
+  grid-area: outputheading;
+}
+
+.thinkcontent {
+  grid-area: thinkcontent;
+}
+
+.outputcontent {
+  grid-area: outputcontent;
+}
+
+.errormsg {
+  grid-area: errormsg;
 }
 </style>
