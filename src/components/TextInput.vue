@@ -1,119 +1,353 @@
 <template>
-  <div class="py-4 text-black" @keydown.ctrl.c.prevent="exportToClipboard">
+  <div class="py-4 text-black">
     <div class="grid grid-cols-2 gap-4">
+      <!-- Think Section -->
       <div class="h-40vh">
         <div class="flex justify-between items-center mb-3">
           <h2 class="text-lg font-semibold text-gray-700">Thinking</h2>
-          <button
-            @click="analyzeWithClaude"
-            class="btn bg-purple-500 hover:bg-purple-600 text-white text-sm px-3 py-1 rounded-lg flex items-center gap-1 m-1"
-            :disabled="isAnalyzing"
-            :class="{ 'opacity-70 cursor-not-allowed': isAnalyzing }"
-          >
-            <div
-              v-if="isAnalyzing"
-              class="i-carbon-circle-dash inline-block animate-spin"
-            ></div>
-            <span v-else class="i-carbon-bot inline-block"></span>
-            {{ isAnalyzing ? "Analyzing..." : "Analyze with Qwen" }}
-          </button>
-
-          <button
-            @click="anonymiseImage"
-            class="btn bg-rose-500 hover:bg-rose-600 text-white text-sm px-3 py-1 rounded-lg flex items-center gap-1 m-1"
-            :disabled="isAnonymising"
-            :class="{ 'opacity-70 cursor-not-allowed': isAnonymising }"
-          >
-            <div
-              v-if="isAnonymising"
-              class="i-carbon-circle-dash inline-block animate-spin"
-            ></div>
-            <span class="i-carbon-paint-brush inline-block"></span>
-            {{ isAnonymising ? "Anonymising..." : "Anonymise" }}
-          </button>
+          <div class="flex items-center space-x-2">
+            <button
+              @click="analyzeWithQwen"
+              class="btn bg-purple-500 hover:bg-purple-600 text-white text-sm px-3 py-1 rounded-lg flex items-center gap-1 m-1"
+              :disabled="isAnalyzing"
+              :class="{ 'opacity-70 cursor-not-allowed': isAnalyzing }"
+              title="Analyze current image with Qwen"
+            >
+              <div
+                v-if="isAnalyzing"
+                class="i-carbon-circle-dash inline-block animate-spin"
+              ></div>
+              <span v-else class="i-carbon-bot inline-block"></span>
+              {{ isAnalyzing ? "Analyzing..." : "Analyze with Qwen" }}
+            </button>
+            <button
+              @click="anonymiseImage"
+              class="btn bg-rose-500 hover:bg-rose-600 text-white text-sm px-3 py-1 rounded-lg flex items-center gap-1 m-1"
+              :disabled="isAnonymising"
+              :class="{ 'opacity-70 cursor-not-allowed': isAnonymising }"
+              title="Anonymise current image (requires Qwen analysis first or manual labels)"
+            >
+              <div
+                v-if="isAnonymising"
+                class="i-carbon-circle-dash inline-block animate-spin"
+              ></div>
+              <span class="i-carbon-paint-brush inline-block"></span>
+              {{ isAnonymising ? "Anonymising..." : "Anonymise" }}
+            </button>
+          </div>
         </div>
         <textarea
-          v-model="thinkText"
-          class="rounded-lg border border-gray-200 shadow-lg h-34vh p-4 w-full"
+          v-model="localThinkText"
+          @input="updateThinkStore"
+          class="rounded-lg border border-gray-200 shadow-lg h-34vh p-4 w-full font-mono text-sm"
           placeholder="Enter thinking notes here..."
           :disabled="isAnalyzing"
         />
       </div>
-      <div class="findings-list overflow-y-auto h-40vh pr-2 custom-scrollbar">
-        <h2 class="text-lg font-semibold mb-3 text-gray-700">Findings</h2>
-        <div
-          v-if="findingsStore.findings.length === 0"
-          class="text-gray-500 italic text-sm"
-        >
-          No findings to display
-        </div>
-        <FindingDisplay
-          v-for="finding in findingsStore.findings"
-          :key="finding.id"
-          :finding="finding"
-          @update:finding="updateFinding"
-          @delete="handleDeleteFinding"
+
+      <!-- Output/Findings Section -->
+      <div class="h-40vh flex flex-col">
+        <h2 class="text-lg font-semibold mb-3 text-gray-700">Output (JSON)</h2>
+        <textarea
+          v-model="localOutputText"
+          @blur="updateOutputStore"
+          class="rounded-lg border border-gray-200 shadow-lg flex-grow p-4 w-full font-mono text-sm"
+          :class="{ 'border-red-500': outputError }"
         />
+        <p v-if="outputError" class="text-red-600 text-xs mt-1">
+          {{ outputError }}
+        </p>
       </div>
     </div>
-  </div>
-  <div class="flex flex-col p-4">
-    <p
-      class="bg-sky-400 text-white rounded-lg p-1"
-      :class="[
-        copied
-          ? 'opacity-100 pointer-events-auto'
-          : 'opacity-0 pointer-events-none',
-        'transition-opacity duration-100',
-      ]"
+
+    <!-- Findings List Display -->
+    <div
+      class="findings-list overflow-y-auto h-40vh pr-2 custom-scrollbar mt-4 border-t pt-4"
     >
-      {{ clipboardActionText }}
-    </p>
-    <div class="flex [&>*]:m-4 [&>*]:px-4 [&>*]:py-2">
-      <button @click="resetText" class="btn bg-red-500 hover:bg-red-600">
-        Reset text
-      </button>
-      <button @click="clearAllLabels" class="btn bg-red-500 hover:bg-red-600">
-        Reset all
-      </button>
-      <button @click="exportToClipboard" class="btn active:bg-gray-200">
-        Copy
-        <div class="i-carbon-copy inline-block vertical-sub"></div>
-      </button>
-      <button @click="importFromClipboard" class="btn active:bg-gray-200">
-        Paste
-        <div class="i-carbon-paste inline-block vertical-sub"></div>
-      </button>
+      <h2 class="text-lg font-semibold mb-3 text-gray-700">
+        Findings (Editable List)
+      </h2>
+      <div
+        v-if="findingsStore.findings.length === 0"
+        class="text-gray-500 italic text-sm"
+      >
+        No findings to display. Add bounding boxes to the image or edit the
+        Output JSON.
+      </div>
+      <FindingDisplay
+        v-for="finding in findingsStore.findings"
+        :key="finding.id"
+        :finding="finding"
+        @update:finding="updateFinding"
+        @delete="handleDeleteFinding"
+      />
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="flex flex-col p-4 items-center">
+      <p
+        class="bg-sky-400 text-white rounded-lg p-1 mb-2 text-sm"
+        :class="[
+          copied
+            ? 'opacity-100 pointer-events-auto'
+            : 'opacity-0 pointer-events-none',
+          'transition-opacity duration-100',
+        ]"
+      >
+        {{ clipboardActionText }}
+      </p>
+      <div class="flex [&>*]:m-2 [&>*]:px-4 [&>*]:py-2">
+        <button
+          @click="resetText"
+          class="btn bg-red-500 hover:bg-red-600 text-white text-sm"
+        >
+          Reset Text
+        </button>
+        <button
+          @click="clearAllLabels"
+          class="btn bg-red-500 hover:bg-red-600 text-white text-sm"
+        >
+          Reset All Labels
+        </button>
+        <button
+          @click="exportToClipboard"
+          class="btn active:bg-gray-200 text-sm"
+        >
+          Copy Tagged Text
+          <div class="i-carbon-copy inline-block vertical-sub"></div>
+        </button>
+        <button
+          @click="importFromClipboard"
+          class="btn active:bg-gray-200 text-sm"
+        >
+          Paste Tagged Text
+          <div class="i-carbon-paste inline-block vertical-sub"></div>
+        </button>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from "vue";
-import type { Finding } from "~/utils/schemas";
-import { basicFindingListSchema } from "~/utils/schemas";
-import { getSection, safeParseJSON } from "~/utils/parsers";
+import { ref, watch, computed } from "vue";
+import { useDebounceFn } from "@vueuse/core";
+
+import type { Finding, InternalRepr } from "~/utils/schemas";
+import { ClaudeService } from "~/utils"; // Assuming Qwen logic is within ClaudeService for now
 import {
   formatInternalReprForExport,
-  basicToNormalized,
-} from "~/utils/formatting";
-import { ClaudeService } from "~/utils";
+  formatInternalReprForDisplay, // Use display version if needed, currently using custom stringify
+  parseTaggedText,
+  parseOutputString,
+  _customFindingsStringify, // Import directly for local output formatting - consider if needed
+} from "~/services/importExportService";
 
 import { useFindingsStore } from "~/stores/findings";
 import { useAnonymisedStore } from "~/stores/anonymised";
 import { useImagesStore } from "~/stores/images";
 import FindingDisplay from "~/components/FindingDisplay.vue";
 
-const thinkText = ref("");
+// --- State Refs ---
+const localThinkText = ref("");
+const localOutputText = ref(""); // Holds the JSON string for the output textarea
+const outputError = ref<string | null>(null);
 const isAnalyzing = ref(false);
 const isAnonymising = ref(false);
 const copied = ref(false);
 const clipboardActionText = ref("Copied!");
 
+// --- Stores ---
 const findingsStore = useFindingsStore();
 const imageStore = useImagesStore();
 const anonymisedStore = useAnonymisedStore();
-const claudeService = ClaudeService.getInstance();
+const claudeService = ClaudeService.getInstance(); // Rename if using a different service class
+
+// --- Computed Properties ---
+// Formats the current findings store output for the textarea
+const formattedOutputForTextarea = computed(() => {
+  // Use the internal service helper _customFindingsStringify for consistency
+  // Convert Findings[] to BasicFinding[] first
+  const basicFindings = findingsStore.findings.map((f) => ({
+    label: f.label,
+    description: f.description,
+    explanation: f.explanation,
+    bounding_box: f.bounding_box,
+    severity: f.severity,
+  }));
+  return _customFindingsStringify(basicFindings);
+});
+
+// --- Watchers to sync local state with store ---
+
+// Update localThinkText when store changes (e.g., loading new image)
+watch(
+  () => findingsStore.thinkText,
+  (newThink) => {
+    if (newThink !== localThinkText.value) {
+      localThinkText.value = newThink;
+    }
+  },
+  { immediate: true }, // Run on component mount
+);
+
+// Update localOutputText when store.findings change (e.g., adding a box via UI)
+watch(
+  () => findingsStore.findings,
+  (newFindings) => {
+    const newOutputString = formattedOutputForTextarea.value;
+    if (newOutputString !== localOutputText.value) {
+      localOutputText.value = newOutputString;
+      // Clear error if store update was successful (e.g. from UI interaction)
+      outputError.value = null;
+    }
+  },
+  { deep: true, immediate: true }, // Deep watch needed for array changes
+);
+
+// --- Methods for Updating Store ---
+
+// Debounced update for think text to avoid excessive store updates on typing
+const updateThinkStore = useDebounceFn(() => {
+  if (findingsStore.thinkText !== localThinkText.value) {
+    findingsStore.setThinkText(localThinkText.value);
+  }
+}, 300);
+
+// Update store when output textarea loses focus
+const updateOutputStore = () => {
+  const result = findingsStore.updateFindingsFromOutputString(
+    localOutputText.value,
+  );
+  if (!result.success) {
+    outputError.value = result.error;
+  } else {
+    outputError.value = null;
+    // Optionally re-format the textarea content based on the successfully parsed data
+    // This ensures consistent formatting if the user's input was slightly off but parseable.
+    // localOutputText.value = formattedOutputForTextarea.value;
+  }
+};
+
+// --- Component Logic/Event Handlers ---
+
+const resetText = () => {
+  // findingsStore.clearFindings() handles both think and output reset
+  findingsStore.clearFindings();
+  localThinkText.value = "";
+  localOutputText.value = "[]"; // Reset output text to empty array representation
+  outputError.value = null;
+};
+
+const updateFinding = (updatedFinding: Finding) => {
+  findingsStore.updateFinding(updatedFinding);
+  // findings watcher will update localOutputText
+};
+
+const handleDeleteFinding = (findingId: string) => {
+  findingsStore.removeFinding(findingId);
+  // findings watcher will update localOutputText
+};
+
+const showClipboardMessage = (message: string) => {
+  clipboardActionText.value = message;
+  copied.value = true;
+  setTimeout(() => {
+    copied.value = false;
+  }, 1500);
+};
+
+const exportToClipboard = () => {
+  // Get the current findings directly from the store
+  const currentInternalRepr = findingsStore.getFindings;
+  // Use the EXPORT formatting function from the service
+  const formattedOutput = formatInternalReprForExport(currentInternalRepr);
+
+  navigator.clipboard
+    .writeText(formattedOutput)
+    .then(() => {
+      showClipboardMessage("Tagged text copied!");
+    })
+    .catch((err) => {
+      console.error("Failed to copy to clipboard:", err);
+      showClipboardMessage("Failed to copy!");
+    });
+};
+
+const importFromClipboard = async () => {
+  try {
+    const clipboardText = await navigator.clipboard.readText();
+    // Use the service function to parse the full tagged text
+    const parseResult = parseTaggedText(clipboardText);
+
+    if (parseResult.data) {
+      // Update the store with the successfully parsed InternalRepr
+      findingsStore.setFindings(parseResult.data);
+      // Watchers will update localThinkText and localOutputText
+      outputError.value = null; // Clear any previous error
+      showClipboardMessage("Pasted from clipboard!");
+      if (parseResult.error) {
+        // Show non-fatal errors/warnings if any occurred during parsing
+        alert(`Pasted with warnings: ${parseResult.error}`);
+      }
+    } else {
+      console.error("Failed to parse clipboard text:", parseResult.error);
+      alert(`Failed to import data: ${parseResult.error}`);
+      showClipboardMessage("Paste failed!");
+    }
+  } catch (error: any) {
+    console.error("Error importing from clipboard:", error);
+    alert(`Error reading clipboard: ${error.message}`);
+    showClipboardMessage("Paste failed!");
+  }
+};
+
+// --- External API Calls ---
+
+// Example: Rename function if using Qwen directly
+const analyzeWithQwen = async () => {
+  const currentImage = imageStore.selectedImage;
+  if (!currentImage) {
+    alert("Please select an image first");
+    return;
+  }
+
+  try {
+    isAnalyzing.value = true;
+    const analysisResponse = await claudeService.analyzeImage(
+      currentImage.file,
+    );
+
+    // Assuming analysisResponse.analysis contains the tagged text
+    const parseResult = parseTaggedText(analysisResponse.analysis);
+
+    if (parseResult.data) {
+      findingsStore.setFindings(parseResult.data);
+      showClipboardMessage("Analysis completed!");
+      if (analysisResponse.anonymized_image) {
+        anonymisedStore.setImage(analysisResponse.anonymized_image);
+      } else {
+        anonymisedStore.clearImage();
+        console.warn("Analysis completed, but no anonymized image returned.");
+      }
+      if (parseResult.error) {
+        alert(`Analysis completed with warnings: ${parseResult.error}`);
+      }
+    } else {
+      findingsStore.setThinkText(
+        `Qwen analysis failed or returned invalid format. Error: ${parseResult.error}\nRaw response: ${analysisResponse.analysis}`,
+      );
+      findingsStore.clearFindings(); // Clear potentially inconsistent findings
+      alert(`Analysis failed: ${parseResult.error}`);
+      showClipboardMessage("Analysis failed!");
+    }
+  } catch (error: any) {
+    console.error("Error analyzing image:", error);
+    alert(`Failed to analyze image: ${error.message || "Unknown error"}`);
+    showClipboardMessage("Analysis failed!");
+  } finally {
+    isAnalyzing.value = false;
+  }
+};
 
 const anonymiseImage = async () => {
   const currentImage = imageStore.selectedImage;
@@ -125,181 +359,43 @@ const anonymiseImage = async () => {
   try {
     isAnonymising.value = true;
 
+    // Get current state and format for export
     const currentFindings = findingsStore.getFindings;
-    const formattedOutput = formatInternalReprForExport(currentFindings);
-    console.log("formatted output:");
-    console.log(formattedOutput);
+    const formattedForApi = formatInternalReprForExport(currentFindings);
 
     const anonymisedResponse = await claudeService.anonymiseImage(
       currentImage.file,
-      formattedOutput,
+      formattedForApi,
     );
 
-    anonymisedStore.setImage(anonymisedResponse.anonymized_image);
-  } catch (error) {
+    // Assuming response has { anonymized_image: string | null }
+    if (anonymisedResponse.anonymized_image) {
+      anonymisedStore.setImage(anonymisedResponse.anonymized_image);
+      showClipboardMessage("Anonymisation successful!");
+    } else {
+      alert(
+        "Anonymisation call succeeded but no anonymized image was returned.",
+      );
+      showClipboardMessage("Anonymisation failed!");
+    }
+  } catch (error: any) {
     console.error("Error anonymising image:", error);
-    alert("Failed to anonymise image. Please try again later.");
+    alert(`Failed to anonymise image: ${error.message || "Unknown error"}`);
+    showClipboardMessage("Anonymisation failed!");
   } finally {
     isAnonymising.value = false;
   }
 };
 
 const clearAllLabels = () => {
-  if (window.confirm("Do you really want to clear ALL labels?")) {
-    imageStore.deleteAllImages(); // Updated function call
-  }
-};
-
-// Update thinkText whenever the store's thinkText changes
-watch(
-  () => findingsStore.thinkText,
-  (newThink) => {
-    thinkText.value = newThink;
-  },
-);
-
-// Update the store's thinkText whenever the local thinkText changes
-watch(thinkText, (newText) => {
-  findingsStore.setThinkText(newText);
-});
-
-const resetText = () => {
-  findingsStore.setThinkText("");
-  findingsStore.clearFindings();
-};
-
-const updateFinding = (updatedFinding: Finding) => {
-  findingsStore.updateFinding(updatedFinding);
-};
-
-const handleDeleteFinding = (id: number) => {
-  // The actual removal is handled in the FindingDisplay component
-  // This is just a hook in case we need to do additional cleanup
-};
-
-const exportToClipboard = () => {
-  const currentFindings = findingsStore.getFindings;
-  const formattedOutput = formatInternalReprForExport(currentFindings);
-
-  navigator.clipboard.writeText(formattedOutput);
-
-  clipboardActionText.value = "Copied to clipboard!";
-  copied.value = true;
-  setTimeout(() => {
-    copied.value = false;
-  }, 500);
-};
-
-const parseTextForOneImage = (text: string) => {
-  // Get think section
-  const thinkSectionText = getSection(text, "think").trim();
-  if (!thinkSectionText) {
-    console.error("No think section found in clipboard data");
-    return;
-  }
-
-  // Get output section (look for <output> tags)
-  const outputSectionText = getSection(text, "output");
-  if (!outputSectionText) {
-    console.error("No output section found in clipboard data");
-    return;
-  }
-
-  // Parse the output section JSON
-  const parsedOutput = safeParseJSON(outputSectionText);
-  if (!parsedOutput) {
-    console.error("Failed to parse output section as JSON");
-    return;
-  }
-
-  // Validate the findings format
-  const validatedFindings = basicFindingListSchema.safeParse(parsedOutput);
-  if (!validatedFindings.success) {
-    console.error("Invalid findings format", validatedFindings.error);
-    return;
-  }
-  return {
-    think: thinkSectionText,
-    output: validatedFindings.data,
-  };
-};
-
-const importFromClipboard = async () => {
-  try {
-    const clipboardText = await navigator.clipboard.readText();
-    const parsed = parseTextForOneImage(clipboardText);
-    if (!parsed) {
-      console.error("Failed to parse text");
-      return;
-    }
-
-    // Convert BasicFinding[] to Finding[] (InternalRepr's 'output' part) and update store
-    const normalizedFindings = basicToNormalized(parsed.output);
-    findingsStore.setFindings({
-      think: parsed.think,
-      output: normalizedFindings,
-    });
-
-    clipboardActionText.value = "Pasted from clipboard!";
-    copied.value = true;
-    setTimeout(() => {
-      copied.value = false;
-    }, 500);
-  } catch (error) {
-    console.error("Error importing from clipboard:", error);
-    alert("Failed to import data from clipboard. Please check the format.");
-  }
-};
-
-// Function to analyze the current image with Claude
-const analyzeWithClaude = async () => {
-  const currentImage = imageStore.selectedImage;
-  if (!currentImage) {
-    alert("Please select an image first");
-    return;
-  }
-
-  try {
-    isAnalyzing.value = true;
-    // Call the Claude API through our proxy endpoint
-    const analysisResponse = await claudeService.analyzeImage(
-      currentImage.file,
-    );
-
-    if (analysisResponse.anonymized_image) {
-      anonymisedStore.setImage(analysisResponse.anonymized_image);
-    } else {
-      // Handle the case when no anonymized image is returned
-      // For example, show a message to the user or take some other action
-      alert("No anonymized image returned");
-      anonymisedStore.clearImage();
-    }
-    // TODO: adjust for qwen
-    const parsed = parseTextForOneImage(analysisResponse.analysis);
-    if (!parsed) {
-      findingsStore.setThinkText(
-        "Claude hallucinated bad output, sorry: " + analysisResponse,
-      );
-      return;
-    } else {
-      // Convert BasicFinding[] to Finding[] (InternalRepr's 'output' part) and update store
-      const normalizedFindings = basicToNormalized(parsed.output);
-      findingsStore.setFindings({
-        think: parsed.think,
-        output: normalizedFindings,
-      });
-
-      clipboardActionText.value = "Analysis completed!";
-      copied.value = true;
-      setTimeout(() => {
-        copied.value = false;
-      }, 500);
-    }
-  } catch (error) {
-    console.error("Error analyzing image:", error);
-    alert("Failed to analyze image. Please try again later.");
-  } finally {
-    isAnalyzing.value = false;
+  if (
+    window.confirm("Do you really want to clear ALL labels for ALL images?")
+  ) {
+    imageStore.deleteAllImages();
+    // findingsStore is cleared automatically by deleteAllImages -> loadFindingsFromMap(null)
+    localThinkText.value = "";
+    localOutputText.value = "[]";
+    outputError.value = null;
   }
 };
 </script>
@@ -321,5 +417,12 @@ const analyzeWithClaude = async () => {
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: #ccc;
+}
+
+/* Minimal mono font style */
+textarea.font-mono {
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
 }
 </style>
